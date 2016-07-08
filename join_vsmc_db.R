@@ -27,11 +27,17 @@ length(common.name)
 exprs.matrix            = common.matrix[-1,]
 colnames(exprs.matrix)  = colnames.vector
 
-results = cor(exprs.matrix)
-rna.cor = cor(rna.log.matrix)
+results = cor(exprs.matrix,method = 'spearman')
+rna.cor = cor(rna.log.matrix, method = 'spearman')
 whole.heatmap = heatmap( results,  margins = c(10, 10),
                          cexCol = 0.2, cexRow = 0.2);
 partial.map = results[results['SRR01',] > 0.9,results['SRR01',] > 0.9]
 heatmap(  partial.map,  margins = c(10, 10),
            cexCol = 1, cexRow = 1);
 rownames(results)[results['SRR01',] > 0.9]
+colnames.vector[whole.heatmap$rowInd]
+summary(as.vector(rna.cor))
+spearman.d = as.vector(rna.cor)
+hist(spearman.d, prob = TRUE, n = 200, col = 'grey')
+lines(density(spearman.d), col = "blue", lwd = 2) # add a density estimate with defaults
+lines(density(spearman.d, adjust=2), lty = "dotted", col = "darkgreen", lwd = 2) 
