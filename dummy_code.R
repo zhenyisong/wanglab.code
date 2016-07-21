@@ -14,6 +14,8 @@ how to install the R package
 # install.packages("ggplot2")
 # install.packages("vioplot")
 # install.packages("multtest")
+# source("http://bioconductor.org/biocLite.R")
+# biocLite("multtest")
 library(ggplot2)
 library(vioplot)
 library(multtest)
