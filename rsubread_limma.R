@@ -14,7 +14,7 @@ library(DESeq2)
 library(gplots)
 library(genefilter)
 library(xlsx)
-
+library(clusterProfiler)
 #-------------------------------------------------------
 # @parameter
 #     input file
@@ -85,6 +85,27 @@ gene.ids     = gene$annotation$GeneID
 colnames(gene.counts) = c( 'VSMC_H2AZ44_Day_4_1','VSMC_H2AZ44_Day_4_2',
                            'VSMC_NT_Day_4_1','VSMC_NT_Day_4_1');
 
+"
+this code is to transfer data to window system
+and R package needed cannot be installed in Linux HPC
+"
+
+write.table( gene.counts, file = "vsmc.genecount.txt", quote = FALSE, 
+             sep = "\t", row.names = TRUE, col.names = TRUE);
+
+# -- start 
+setwd("E:\\FuWai\\王利实验室\\RNA-seq\\2016_05_26")
+gene.df  = read.table( 'vsmc.genecount.txt', header = TRUE, 
+                       sep = "\t", row.names = 1)
+GeneInfo = select( org.Mm.eg.db, keys= as.character(rownames(gene.df)), 
+                   keytype="ENTREZID", columns = c("SYMBOL"));
+m        = match(rownames(gene.df), GeneInfo$ENTREZID);
+Ann      = cbind( rownames(gene.df),
+                  GeneInfo[m, c("SYMBOL")]);
+
+gene.counts = as.matrix(gene.df)
+
+# --- you can comment on the above code
 
 keytypes(org.Mm.eg.db)
 
@@ -96,13 +117,15 @@ Ann      = cbind( gene$annotation[, c("GeneID", "Chr","Length")],
                           GeneInfo[m, c("SYMBOL", "MGI", "GENENAME")]);
 
 rownames(gene.counts) = GeneInfo[m,'SYMBOL'];
-write.table( gene.counts, file = "vsmc.counts.txt", quote = FALSE, 
-             sep = "\t", row.names = TRUE, col.names = TRUE);
+
+#write.table( gene.counts, file = "vsmc.counts.txt", quote = FALSE, 
+#             sep = "\t", row.names = TRUE, col.names = TRUE);
 
 Ann$Chr  =  unlist( lapply(strsplit(Ann$Chr, ";"), 
                     function(x) paste(unique(x), collapse = "|")))
 Ann$Chr  = gsub("chr", "", Ann$Chr)
 
+# if us window, start here
 gene.exprs = DGEList(counts = gene.counts, genes = Ann)
 A          = rowSums(gene.exprs$counts)
 isexpr     = A > 50
@@ -141,12 +164,12 @@ heatmap(   cor(heatmap.vsd),  margins = c(10, 10),
 
 
 # Figure 2. gene heatmap, gene clustering
-heatmap.result<-heatmap.2(heatmap.vsd, col=greenred(75),scale = 'row', 
-						 Rowv = TRUE,Colv=FALSE, density.info='none',key=FALSE, trace='none', 
-						 cexRow=0.1,distfun= function(d) as.dist(1-cor(t(d),method = 'pearson')),
-						 hclustfun = function(d) hclust(d, method = 'complete'),
-						 dendrogram = 'row',margins =c(12,9),labRow = NA,
-						 lmat=rbind( c(0, 3), c(2,1), c(0,4) ), lhei=c(0.25, 10, 0.25 ));
+heatmap.result<-heatmap.2( heatmap.vsd, col=greenred(75),scale = 'row', 
+						   Rowv = TRUE,Colv=FALSE, density.info='none',key=FALSE, trace='none', 
+						   cexRow = 0.1,distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
+						   hclustfun = function(d) hclust(d, method = 'complete'),
+						   dendrogram = 'row',margins = c(12,9),labRow = NA,
+						   lmat=rbind( c(0, 3), c(2,1), c(0,4) ), lhei = c(0.25, 10, 0.25 ));
 
 # Figure 3. PCA analysis
 pr = prcomp(t(heatmap.vsd))
@@ -171,8 +194,12 @@ fit2            = contrasts.fit(fit,contrast.matrix)
 fit2            = eBayes(fit2)
 
 
-#gene.result = topTable( fit2, coef = ncol(design), 
-#                        number = Inf, adjust.method="BH", sort.by="p");
+gene.result = topTable( fit2, 
+                         number        = Inf, 
+                         adjust.method = "BH", 
+                         sort.by       = "p");
+write.table( gene.result, file = "vsmc_all.txt", quote = FALSE, 
+             sep = "\t", row.names = TRUE, col.names = TRUE);
 gene.result = topTable( fit2, number = Inf, 
                         adjust.method="BH", sort.by="p",
                         lfc = 0.58, p.value = 0.05);
@@ -182,5 +209,85 @@ gene.result = topTable( fit2, number = Inf,
 
 write.xlsx(file = 'vsmc.xls',gene.result)
 
+
+#-------------------------------------------------------------
+# Figure KEGG enrichment analysis
+# Figure Go enrichment analysis
+#-------------------------------------------------------------
+
+gene.entrez.id = gene.result$V1
+
+kegg.table  =  enrichKEGG( gene.entrez.id, organism = "mouse", 
+                           pvalueCutoff  = 0.05, 
+                           pAdjustMethod = "BH", 
+                           qvalueCutoff  = 0.1, readable = TRUE)
+kegg.result       = summary(kegg.table)
+kegg.qvalue       = -log(kegg.result$qvalue)
+kegg.pathway.name = kegg.result$Description
+
+#barplot(kegg.qvalue, names.arg = kegg.pathway.name, las = 3.5)
+
+par(mar = c(12,4,1,1), fin = c(4,4))
+
+x = barplot( kegg.qvalue, cex.lab = 0.8,cex.axis= 0.8,
+             main = 'KEGG enrichment anlysis', cex.main = 0.8,
+             ylab = '-log(q-value of enrichment)')
+text( cex = 0.6, x = x - 0.25, y = -1.25, 
+      kegg.pathway.name, 
+      xpd = TRUE, srt = 50, pos = 2)
+
+
+go.table = enrichGO( gene.entrez.id, organism = "mouse",
+                     ont = "MF",
+                     pAdjustMethod = "BH",
+                     pvalueCutoff  = 0.01,
+                     qvalueCutoff  = 0.05)
+go.cc.result      = summary(go.table)
+go.qvalue         = -log(go.cc.result$qvalue)
+go.term.name      = go.cc.result$Description
+
+
+par(mar = c(6,12,1,1), fin = c(4.5,4.5))
+x = barplot( go.qvalue[1:10], cex.lab = 0.8,cex.axis= 0.8,
+             names.arg = go.term.name[1:10], horiz = TRUE,
+             main = 'GO_MF enrichment anlysis', cex.main = 0.8,
+             las  = 2, cex.name = 0.8,
+             xlab = '-log(q-value of GO enrichment)')
+
+
+go.table = enrichGO( gene.entrez.id, organism = "mouse",
+                     ont = "CC",
+                     pAdjustMethod = "BH",
+                     pvalueCutoff  = 0.01,
+                     qvalueCutoff  = 0.05)
+go.cc.result      = summary(go.table)
+go.qvalue         = -log(go.cc.result$qvalue)
+go.term.name      = go.cc.result$Description
+
+
+par(mar = c(6,12,1,1), fin = c(4.5,4.5))
+x = barplot( go.qvalue[1:10], cex.lab = 0.8,cex.axis= 0.8,
+             names.arg = go.term.name[1:10], horiz = TRUE,
+             main = 'GO_CC enrichment anlysis', cex.main = 0.8,
+             las  = 2, cex.name = 0.8,
+             xlab = '-log(q-value of GO enrichment)')
+
+
+go.table = enrichGO( gene.entrez.id, organism = "mouse",
+                     ont = "BP",
+                     pAdjustMethod = "BH",
+                     pvalueCutoff  = 0.01,
+                     qvalueCutoff  = 0.05)
+go.cc.result      = summary(go.table)
+go.qvalue         = -log(go.cc.result$qvalue)
+go.term.name      = go.cc.result$Description
+
+
+par(mar = c(6,12,1,1), fin = c(4.5,4.5))
+x = barplot( go.qvalue[1:10], cex.lab = 0.8,cex.axis= 0.8,
+             names.arg = go.term.name[1:10], horiz = TRUE,
+             main = 'GO_BP enrichment anlysis', cex.main = 0.8,
+             las  = 2, cex.name = 0.8,
+             xlab = '-log(q-value of GO enrichment)')
 
 ## End(Not run)

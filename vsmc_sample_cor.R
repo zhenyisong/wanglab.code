@@ -7,6 +7,7 @@ library(org.Mm.eg.db)
 library(DESeq2)
 library(gplots)
 library(genefilter)
+library(RColorBrewer)
 
 setwd('/home/zhenyisong/data/wanglilab/vsmc_db');
 
@@ -192,10 +193,13 @@ hist(spearman.d, prob = TRUE, n = 200, col = 'grey')
 lines(density(spearman.d), col = "blue", lwd = 2) # add a density estimate with defaults
 lines(density(spearman.d, adjust=2), lty = "dotted", col = "darkgreen", lwd = 2) 
 
+
+#-------------------------------------------------------------
 # Figure
 # heatmap of smooth muscle differentiation markers
+#-------------------------------------------------------------
 
-vcms.markers  = 'SM-markers.xlsx'
+vcms.markers  = 'SM-markers.xlsx' # this data is manually curated
 vcms.table    = read.xlsx(vcms.markers,header = TRUE, stringsAsFactors = FALSE, 1)
 vsmc.genename = vcms.table$GeneSymbol
 
@@ -215,13 +219,18 @@ vsd.markers              = vsd.expr[vsmc.genename,]
 
 # this code is extracted from 
 # http://stackoverflow.com/questions/17820143/how-to-change-heatmap-2-color-range-in-r
+# http://seqanswers.com/forums/archive/index.php/t-12022.html
+
 colors      = c(seq(-3,-2,length=100),seq(-2,0.5,length=100),seq(0.5,6,length=100))
-my_palette  =  colorRampPalette(c("red", "black", "green"))(n = 299)
-heatmap.result = heatmap.2(vsd.markers, col = my_palette,scale  = 'row', 
+my_palette  = colorRampPalette(c("red", "black", "green"))(n = 299)
+my_palette  = colorRampPalette(c("white","green","green4","violet","purple"))(100)
+my_palette  = colorRampPalette(brewer.pal(10, "RdBu"))(256)
+#my_palette  = colorRampPalette(c("red","white","blue"))(256)
+heatmap.result = heatmap.2(vsd.markers, col = my_palette, scale  = 'row', 
 						   Rowv = TRUE,Colv = FALSE, density.info = 'none',
                            key  = TRUE, trace='none', symm = F,symkey = F,symbreaks = T,
-						   cexRow = 1.5, cexCol = 1.5,srtCol = 30,
-                           distfun= function(d) as.dist(1-cor(t(d),method = 'pearson')),
+						   cexRow  = 1.5, cexCol = 1.5,srtCol = 30,
+                           distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
 						   hclustfun  = function(d) hclust(d, method = 'complete'),
 						   dendrogram = 'row',margins = c(12,6),labRow = vsmc.genename,
 						  );
