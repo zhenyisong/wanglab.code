@@ -14,14 +14,31 @@ library(pd.ragene.1.0.st.v1)
 library(pd.huex.1.0.st.v2)
 library(pd.hugene.1.0.st.v1)
 
+#------------------------------------------------------
+# as reqeusted, first step is to download the 
+# raw affy data
+# use this script to export the RMA-processed CEL raw
+# data. the raw data dir was specified by setwd()
+# and all processed data were exported to a
+# common dir.
+# @parent program
+#     none
+# @sibling program
+#     mergeAffy.pl
+# this is a dirty work. After output the processed data
+# the user should change the DOS format to UNIX format.
+# otherwise the sibling program cannot.
+#------------------------------------------------------
+
+
 # https://bioinformaticsagatha.wordpress.com/2011/03/10/1-expression-analysis-of-affymetrix-arrays-using-bioconductor/
 
 setwd("D:\\wangli_data\\GSE15713")
-raw.data   = ReadAffy();
-rma.data   = rma(raw.data);
+raw.data    = ReadAffy();
+rma.data    = rma(raw.data);
 exprs1.data = exprs(rma.data)
-probes     = rownames(exprs1.data)
-symbols    = unlist(mget(probes, rae230aSYMBOL, ifnotfound = NA))
+probes      = rownames(exprs1.data)
+symbols     = unlist(mget(probes, rae230aSYMBOL, ifnotfound = NA))
 
 
 setwd("D:\\wangli_data\\GSE66624")
@@ -244,6 +261,85 @@ setwd("D:\\wangli_data\\read_results")
 write.table( norm.data, file = "pd.ragene.1.0.st.v1.txt", quote = FALSE, 
              sep = "\t", row.names = FALSE, col.names = TRUE)
 
+# export pd.hugene.1.0.st.v1
+
+setwd("D:\\wangli_data\\GSE56819")
+celPath  = list.files( getwd(), pattern = "\\.CEL|\\.CEL\\.gz", 
+                      full.names = TRUE, ignore.case = TRUE)
+raw.data = read.celfiles(celPath, pkgname = "pd.hugene.1.0.st.v1")
+rma.data = rma(raw.data,target = 'core')
+featureData(rma.data) =  getNetAffx(rma.data,'transcript')
+gene.symbol           = pData(featureData(rma.data))[, 'geneassignment']
+exprs1.data           = exprs(rma.data)
+
+setwd("D:\\wangli_data\\GSE30004")
+celPath  = list.files( getwd(), pattern = "\\.CEL|\\.CEL\\.gz", 
+                      full.names = TRUE, ignore.case = TRUE)
+raw.data = read.celfiles(celPath, pkgname = "pd.hugene.1.0.st.v1")
+rma.data = rma(raw.data,target = 'core')
+featureData(rma.data) =  getNetAffx(rma.data,'transcript')
+exprs2.data           = exprs(rma.data)
+
+setwd("D:\\wangli_data\\GSE17556")
+celPath  = list.files( getwd(), pattern = "\\.CEL|\\.CEL\\.gz", 
+                      full.names = TRUE, ignore.case = TRUE)
+raw.data = read.celfiles(celPath, pkgname = "pd.hugene.1.0.st.v1")
+rma.data = rma(raw.data,target = 'core')
+featureData(rma.data) =  getNetAffx(rma.data,'transcript')
+exprs3.data           = exprs(rma.data)
+
+setwd("D:\\wangli_data\\GSE63425")
+celPath  = list.files( getwd(), pattern = "\\.CEL|\\.CEL\\.gz", 
+                      full.names = TRUE, ignore.case = TRUE)
+raw.data = read.celfiles(celPath, pkgname = "pd.hugene.1.0.st.v1")
+rma.data = rma(raw.data,target = 'core')
+featureData(rma.data) =  getNetAffx(rma.data,'transcript')
+exprs4.data           = exprs(rma.data)
+
+setwd("D:\\wangli_data\\GSE68021")
+celPath  = list.files( getwd(), pattern = "\\.CEL|\\.CEL\\.gz", 
+                      full.names = TRUE, ignore.case = TRUE)
+raw.data = read.celfiles(celPath, pkgname = "pd.hugene.1.0.st.v1")
+rma.data = rma(raw.data,target = 'core')
+featureData(rma.data) =  getNetAffx(rma.data,'transcript')
+exprs5.data           = exprs(rma.data)
+
+norm.data             = cbind( gene.symbol,exprs1.data,exprs2.data,
+                               exprs3.data,exprs4.data,exprs5.data)
+
+setwd("D:\\wangli_data\\read_results")
+write.table( norm.data, file = "pd.hugene.1.0.st.v1.txt", quote = FALSE, 
+             sep = "\t", row.names = FALSE, col.names = TRUE)
 
 
+# export  pd.huex.1.0.st.v2
+
+setwd("D:\\wangli_data\\GSE19441")
+celPath  = list.files( getwd(), pattern = "\\.CEL|\\.CEL\\.gz", 
+                      full.names = TRUE, ignore.case = TRUE)
+raw.data = read.celfiles(celPath, pkgname = "pd.huex.1.0.st.v2")
+rma.data = rma(raw.data,target = 'core')
+featureData(rma.data) =  getNetAffx(rma.data,'transcript')
+gene.symbol           = pData(featureData(rma.data))[, 'geneassignment']
+exprs1.data           = exprs(rma.data)
+
+
+# the following data is too huge,
+# and only the expression profiles
+# for various cell type.
+# discarded!
+#
+#setwd("D:\\wangli_data\\GSE19090")
+#celPath  = list.files( getwd(), pattern = "\\.CEL|\\.CEL\\.gz", 
+#                      full.names = TRUE, ignore.case = TRUE)
+#raw.data = read.celfiles(celPath, pkgname = "pd.huex.1.0.st.v2")
+#rma.data = rma(raw.data,target = 'core')
+#featureData(rma.data) =  getNetAffx(rma.data,'transcript')
+#exprs2.data           = exprs(rma.data)
+
+norm.data             = cbind( gene.symbol,exprs1.data)
+
+setwd("D:\\wangli_data\\read_results")
+write.table( norm.data, file = "pd.huex.1.0.st.v2.txt", quote = FALSE, 
+             sep = "\t", row.names = FALSE, col.names = TRUE)
 

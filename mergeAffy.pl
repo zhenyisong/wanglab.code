@@ -3,17 +3,27 @@
 use strict;
 use FileHandle;
 
+#----------------------------------------------------------------
+# the input data were uploaded from Window local dir
+# data were uploaded into the dir affy_results in linux
+# @parent program
+#    microarray2Expr.R
+# @sibling program
+#    vsmc_sample_cor.R  
+#----------------------------------------------------------------
+
 
 my $file_dir          = '/home/zhenyisong/data/wanglilab/affy_results/';
+my $output_file_dir   = '/home/zhenyisong/data/wanglilab/vsmc_db';
 #my $file_dir          = '/home/zhenyisong/data/wanglilab/temp/';
 #my $file_dir          = 'D:\\wangli_data\\read_results\\';
 chdir($file_dir);
 
-my $output_filename   = 'final_affy.cos';
-my $output_fh         = FileHandle->new(">$output_filename");
+my $output_filename  = 'final_affy.cos';
 
-my @affy_files     = `ls *.txt`;
-my $affy_results   = undef;
+
+my @affy_files       = `ls *.txt`;
+my $affy_results     = undef;
 
 # read all input of the affy data
 
@@ -42,8 +52,12 @@ foreach my $file (@affy_files) {
     } 
 }
 
-
+#--------------------------------------------------------------
 # merge the name of affy_results data
+# the finale result is the output of array
+# this arrray contain the common names of
+# all Affy data
+#--------------------------------------------------------------
 my $initial_file      = $affy_files[-1];
 my $initial_result    = $affy_results->{$initial_file};
 my @intersection      = keys %{$initial_result->{'genelist'}};
@@ -55,7 +69,14 @@ foreach my $file (@affy_files[0..$#affy_files - 1]) {
     @intersection            = grep( $intersection{$_}, @genenames);
 }
 
-# output the file header
+
+# change to the dir of
+chdir($output_file_dir);
+my $output_fh    = FileHandle->new(">$output_filename");
+
+#--------------------------------------------------------------
+# following code is to output the file header
+#--------------------------------------------------------------
 my $last_file  = $affy_files[-1];
 foreach my $file (@affy_files[0..$#affy_files - 1]) {
     my $header     = $affy_results->{$file}->{'header_@@'};
@@ -75,11 +96,16 @@ foreach my $srr_id (@buffer) {
 $output_fh->print($last_id);
 $output_fh->print("\n");
 
-#print @intersection;
+#--------------------------------------------------------------
+# print @intersection;
 # output the gene rows
+#--------------------------------------------------------------
 
+#print @intersection;
+#exit(0);
 foreach my $gene (@intersection) {
     #print $gene,"\n";
+    # print the row name, the gene symbol
     $output_fh->print($gene);
     $output_fh->print("\t");
 
@@ -105,6 +131,19 @@ foreach my $gene (@intersection) {
 }
 
 $output_fh->close;
+
+print "you complete the task!\n\n";
+exit(0);
+
+#--------------------------------------------------------------
+# @parameter
+#    the file name which is the RMA-processed data
+#    the file name have "pd" prefix and
+# @return
+#    the hash_reference
+#    hash_ref->{"header_@@"}
+#    hash_ref->{"genelist"}->{$genesymbol}
+#--------------------------------------------------------------
 
 
 sub readAffyfile {
