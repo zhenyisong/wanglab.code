@@ -12,18 +12,37 @@ use FileHandle;
 # the current directory
 # cd /home/zhenyisong/data/wanglilab
 # cp -r SRP*/*.rlog.counts.txt RNA_seq_results/
+# cp -r SRP*/*.norm.counts.txt RNA_seq_results/
 # run
 # perl wangcode/mergeRNAseq.pl
 # @output
 #    final_rna_seq.cos
+#         this data is used to generate sample correlation heatmap
+#    final_rna-seq.norm
+#        this file is used to generate gene epxression distribution map
+#        and select DEG genes. |log ratio| > 0.58 (log 1.5)
 # @sibling program
 #     the next script is vsmc_sample.cor.R
 
 # @parameters
 #     the input file is from the Perl script output
 #     the output is the final_rna_seq.cos
+#        or final_rna_seq.norm
+#        the latter you should change the 
+#        ls match pattern
+#
 #     
 
+
+# raw data is from 
+#     SRP010854/rsubread.R
+#     SRP013262/rsubread.R
+#     SRP018779/rsubread.R
+#     SRP032363/rsubread.R
+#     SRP045701/rsubread.R
+#     SRP045702/rsubread.R
+#     SRP052879/rsubread.R
+#     projects/2016-05-26/rsubread.R
 
 # this is the dir of processed RNA-seq data
 my $file_dir          = '/home/zhenyisong/data/wanglilab/RNA_seq_results/';
@@ -31,13 +50,18 @@ my $file_dir          = '/home/zhenyisong/data/wanglilab/RNA_seq_results/';
 chdir($file_dir);
 
 # this is the output file name 
-my $output_filename   = 'final_rna_seq.cos';
+# the raw processed data, the normalized gene count file
+# 
+#
+#my $output_filename   = 'final_rna_seq.cos';
+my $output_filename   = 'final_rna_seq.norm';
 my $output_dir        = '/home/zhenyisong/data/wanglilab/vsmc_db';
 
 
 # get the processed RNA-seq data
-my @rna_results       = `ls *.rlog.counts.txt`;
-
+# if it is rlog data, the 
+#my @rna_results       = `ls *.rlog.counts.txt`;
+my @rna_results       = `ls *.norm.counts.txt`;
 # get the common genenames from RNA-seq data
 # use the dictionary code in Perl
 # to extract the common gene names
