@@ -1,0 +1,45 @@
+#!/bin/bash
+#PBS -k o
+#PBS -l nodes=1:ppn=8:dc,vmem=32gb,walltime=48:00:00 
+#PBS -M zhenyisong@gmail.com 
+#PBS -m abe
+#PBS -N HISAT2
+#PBS -j oe
+#PBS -e /home/zhenyisong/data/cardiodata/SRP012040
+#PBS -o /home/zhenyisong/data/cardiodata/SRP012040
+
+
+source /etc/profile
+#----------------------------------------------------------
+# old index file was broken, I do not know why.
+# I used the command below to re-build the genome
+#----------------------------------------------------------
+
+hisat2='/data/software/bin/hisat2-2.0.4'
+mm10_genome='/home/zhenyisong/data/genome/mm10_Bowtie1Index/mm10.fa'
+mm10_index='/home/zhenyisong/data/genome/hisat2/mm10'
+cd $mm10_index
+# discard to build the index.
+# $hisat2/hisat2-build -f -p 4 $mm10_genome genome
+
+gtf='/home/zhenyisong/data/wanglilab/projects/2016-05-26/genes.gtf'
+fastq='/home/zhenyisong/data/cardiodata/SRP012040'
+
+# if unpiared the data, -U parameter will be used
+#shopt -s nullglob
+cd /home/zhenyisong/data/cardiodata/SRP012040
+files1=(*_1.fastq)
+files2=(*_2.fastq)
+len=${#files1[@]}
+
+cd /home/zhenyisong/data/cardiodata/SRP012040/hisat2
+
+for (( i=0; i<${len}; i++ ));
+do
+    forward=${files1[$i]}
+    backward=${files2[$i]}
+    base=${forward%_1.fastq}
+    $hisat2/hisat2 -p 4 -x $mm10_index/genome -1 $fastq/$forward -2 $fastq/$backward -S  $base.sam
+    samtools view -bS $base.sam |samtools sort -n -O bam -o $base.sorted.bam -@ 8 -T zhen3_temp -
+    python -m HTSeq.scripts.count -f bam -r name -s no $base.sorted.bam $gtf > $base.txt
+done
