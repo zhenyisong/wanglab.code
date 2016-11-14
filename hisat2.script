@@ -8,6 +8,10 @@
 #PBS -e /home/zhenyisong/data/cardiodata/SRP012040
 #PBS -o /home/zhenyisong/data/cardiodata/SRP012040
 
+#---
+# discarded!!!
+# #python -m HTSeq.scripts.count -f bam -r name -s no $base.sorted.bam $gtf > $base.txt
+#---
 
 source /etc/profile
 #----------------------------------------------------------
@@ -16,8 +20,12 @@ source /etc/profile
 #----------------------------------------------------------
 
 hisat2='/data/software/bin/hisat2-2.0.4'
+stringtie='/data/software/bin/stringtie-1.3.0.Linux_x86_64/stringtie'
+preDE='/usr/bin/prepDE.py'
 mm10_genome='/home/zhenyisong/data/genome/mm10_Bowtie1Index/mm10.fa'
 mm10_index='/home/zhenyisong/data/genome/hisat2/mm10'
+mergelist='mergelist.txt'
+merge_gtf='stringtie_merged.gtf'
 cd $mm10_index
 # discard to build the index.
 # $hisat2/hisat2-build -f -p 4 $mm10_genome genome
@@ -39,7 +47,21 @@ do
     forward=${files1[$i]}
     backward=${files2[$i]}
     base=${forward%_1.fastq}
-    $hisat2/hisat2 -p 4 -x $mm10_index/genome -1 $fastq/$forward -2 $fastq/$backward -S  $base.sam
-    samtools view -bS $base.sam |samtools sort -n -O bam -o $base.sorted.bam -@ 8 -T zhen3_temp -
-    python -m HTSeq.scripts.count -f bam -r name -s no $base.sorted.bam $gtf > $base.txt
+    $hisat2/hisat2 -p 4 --dta -x $mm10_index/genome -1 $fastq/$forward -2 $fastq/$backward -S  $base.sam
+    samtools view -bS $base.sam > $base.unsorted.bam
+    samtools sort -@ 8 $base.unsorted.bam $base
+    $stringtie -p 4 -G $gtf -o $base.gtf -l $base $base.bam
+    
 done
+
+ls *.gtf > $mergelist
+
+$stringtie --merge -p 4 -G $gtf -o $merge_gtf $mergelist
+
+for (( i=0; i<${len}; i++ ));
+do
+    forward=${files1[$i]}
+    base=${forward%_1.fastq}
+    $stringtie -e -B -p 4 -G $merge_gtf -o results/$base $base.bam
+done
+rm *.sam *unsorted.bam

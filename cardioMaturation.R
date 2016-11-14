@@ -39,6 +39,7 @@ library(limma)
 library(org.Hs.eg.db)
 library(mgu74a.db)
 library(RFLPtools)
+library(VennDiagram)
 
 
 setwd("C:\\Users\\Yisong\\Desktop")
@@ -228,9 +229,10 @@ duncan.gene <- featureCounts( outputs.files, useMetaFeatures = TRUE,
 #quit("no")
 #
 
-#
+#---
 #  Now, extract data from above output
 #  GSE64403/SRP051406
+#---
 
 
 gene         <- boyer.gene
@@ -281,6 +283,69 @@ rownames(vsd.expr)       <- gene.exprs$genes$SYMBOL
 colnames(vsd.expr)       <- colnames(gene.counts)
 vsd.subset.exprs         <- vsd.expr[,c('vP0_1','vP0_2','vP4_1','vP4_2','vP7_1','vP7_2','vAd_1','vAd_2')]
 
+
+#---
+# the dicarded filtering strategy is much more vigour than expect
+# thus leading to no genes in intersection result
+#---
+
+# please see the interpretation of the prcomp
+# in 'An Introdcution to Statistical Learning'
+# Page: 407-409
+
+
+#---
+# seperate the line size and point size
+# Can ggplot2 control point size and line size 
+# (lineweight) separately in one legend?
+# How to scale the size of line and point separately in ggplot2
+#---
+
+boyer.PCA  <- prcomp(t(vsd.subset.exprs))
+names(boyer.PCA)
+boyer.cord <- as.data.frame(boyer.PCA$x)
+#biplot(boyer.PCA, scale = 0)
+dim(boyer.cord)
+
+pr.var <- boyer.PCA$sdev^2
+pve    <- pr.var/sum(pr.var)
+pve.df <- data.frame(variance = pve, pca = c(1:8))
+ggplot(pve.df) +
+        xlab('Principle Component') +
+        ylab('Proportion of Variance Explained') +
+        scale_x_continuous( breaks = c(1:8), labels = as.character(c(1:8), 
+                            limits = as.character(c(1:8)))) +
+        geom_point(aes(x = pca, y = variance), size = 3) +
+        geom_line(aes(x = pca, y = variance), size = 0.8) +
+        scale_linetype_discrete() +
+        theme(legend.position="none")
+
+pvecum.df <- data.frame(variance = cumsum(pve), pca = c(1:8))
+ggplot(pvecum.df) +
+        xlab('Principle Component') +
+        ylab('Culmulative Proportion of Variance Explained') +
+        scale_x_continuous( breaks = c(1:8), labels = as.character(c(1:8), 
+                            limits = as.character(c(1:8)))) +
+        geom_point(aes(x = pca, y = variance), size = 3) +
+        geom_line(aes(x = pca, y = variance),size = 0.8) +
+        scale_linetype_discrete() +
+        theme(legend.position="none")
+
+boyer.PCA$rotation
+
+boyer.cord$color.type<- factor(c(1,1,2,2,3,3,4,4))
+
+ggplot(boyer.cord) + 
+           geom_point(aes(x = PC1, y = PC2, color = color.type), size = 3) + 
+           scale_colour_manual( name   = 'developement stages',
+                                values = c("black", "blue", "red","green"),
+                                labels = c( '0 day postnatal ventricle, P0',
+                                            '4 day postnatal ventricle, P4',
+                                            '7 day postnatal ventricle, P7','adult')) +
+           theme(legend.position = c(0.65, 0.2),legend.title.align = 0.5)
+plot(boyer.PCA$x, col = "white",main = "PC plot")
+text(boyer.PCA$x[,1],boyer.PCA$x[,2],labels = colnames(vsd.subset.exprs), cex = 0.7)
+"
 f1 <- function(x) (IQR(x) > 0.5)
 f2 <- pOverA(0.25, log2(100))
 f3 <- function(x) (median(2^x) > 300)
@@ -291,11 +356,26 @@ ff <- filterfun(f1,f2,f3,f4,f5,f6)
 mature.boyer.markers <- genefilter(vsd.subset.exprs, ff)
 mature.boyer.markers <- vsd.subset.exprs[mature.boyer.markers,]
 "
+
+"
+alternative filtering method which is 
+from the book biocondcutor case
+"
 sds <- rowSds(vsd.subset.exprs)
 hist(sds)
 sh  <- shorth(sds)
-"
+mature.boyer.markers <- vsd.subset.exprs[sds > 0.3,]
 
+"
+test <- vsd.subset.exprs[fetal.genes,]
+
+heatmap.result <- heatmap.2( test, col = greenred(75),scale  = 'row', 
+						     Rowv = TRUE,Colv = FALSE, density.info = 'none',key = TRUE, trace = 'none', 
+						     cexCol = 1.5,distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
+						     hclustfun = function(d) hclust(d, method = 'complete'),
+						     dendrogram = 'row',margins = c(12,9),labRow = NA, srtCol = 30,
+						     lmat = rbind(c(4,0), c(2,1),c(0,3)), lhei = c(1,3, 0.5), lwid = c(1,4));
+"
 
 heatmap.result <- heatmap.2( mature.boyer.markers, col = greenred(75),scale  = 'row', 
 						     Rowv = TRUE,Colv = FALSE, density.info = 'none',key = TRUE, trace = 'none', 
@@ -306,6 +386,17 @@ heatmap.result <- heatmap.2( mature.boyer.markers, col = greenred(75),scale  = '
 mature.boyer.tree    <- hclust(as.dist(1 - cor(t(mature.boyer.markers), method='pearson')), method='complete');
 mature.boyer.result  <- cutree(mature.boyer.tree, k = 2)
 mature.boyer.markers <- names(mature.boyer.result)[mature.boyer.result == 1]
+fetal.boyer.markers  <- names(mature.boyer.result)[mature.boyer.result == 2]
+
+#---
+# PCA analysis
+# please see PMID: 24739965
+# see this article attachment: 
+#    Ranalysis_scRNAseq_E14-16-18-AT2_paper_corr
+#    line: 276
+#---
+
+
 
 #-- end of Boyer
 
@@ -356,7 +447,7 @@ vsd.expr                 <- assay(vsd)
 rownames(vsd.expr)       <- gene.exprs$genes$SYMBOL
 colnames(vsd.expr)       <- colnames(gene.counts)[1:5]
 
-
+"
 f1 <- function(x) (IQR(x) > 0.5)
 f2 <- pOverA(0.25, log2(100))
 f3 <- function(x) (median(2^x) > 300)
@@ -366,6 +457,13 @@ f6 <- function(x) (sqrt(10) * abs(mean(x))/sd(x) > qt(0.975,9))
 ff <- filterfun(f1,f2,f3,f4,f5,f6)
 mature.duncan.markers <- genefilter(vsd.expr, ff)
 mature.duncan.markers <- vsd.expr[mature.duncan.markers,]
+"
+
+sds <- rowSds(vsd.expr)
+hist(sds)
+sh  <- shorth(sds)
+summary(sds)
+mature.duncan.markers <- vsd.expr[sds > 0.5,]
 
 heatmap.result <- heatmap.2( mature.duncan.markers, col = greenred(75),scale  = 'row', 
 						     Rowv = TRUE,Colv = FALSE, density.info = 'none',key = TRUE, trace = 'none', 
@@ -373,9 +471,13 @@ heatmap.result <- heatmap.2( mature.duncan.markers, col = greenred(75),scale  = 
 						     hclustfun = function(d) hclust(d, method = 'complete'),
 						     dendrogram = 'row',margins = c(12,9),labRow = NA, srtCol = 30,
 						     lmat = rbind(c(4,0), c(2,1),c(0,3)), lhei = c(1,3, 0.5), lwid = c(1,4));
+
+
 mature.duncan.tree    <- hclust(as.dist(1 - cor(t(mature.duncan.markers), method='pearson')), method='complete');
 mature.duncan.result  <- cutree(mature.duncan.tree, k = 2)
-mature.duncan.markers <- names(mature.duncan.result)[mature.duncan.result == 1]
+mature.duncan.markers <- names(mature.duncan.result)[mature.duncan.result == 2]
+fetal.duncan.markers  <- names(mature.duncan.result)[mature.duncan.result == 1]
+
 
 #-- end of duncan
 
@@ -422,7 +524,7 @@ vsd.expr                 <- assay(vsd)
 rownames(vsd.expr)       <- gene.exprs$genes$SYMBOL
 colnames(vsd.expr)       <- colnames(gene.counts)
 
-
+"
 f1 <- function(x) (IQR(x) > 0.5)
 f2 <- pOverA(0.25, log2(100))
 f3 <- function(x) (median(2^x) > 300)
@@ -432,6 +534,13 @@ f6 <- function(x) (sqrt(10) * abs(mean(x))/sd(x) > qt(0.975,9))
 ff <- filterfun(f1,f2,f3,f4,f5,f6)
 mature.perrelo.markers <- genefilter(vsd.expr, ff)
 mature.perrelo.markers <- vsd.expr[mature.perrelo.markers,]
+"
+
+sds <- rowSds(vsd.expr)
+hist(sds)
+sh  <- shorth(sds)
+summary(sds)
+mature.perrelo.markers <- vsd.expr[sds > 0.3,]
 
 heatmap.result <- heatmap.2( mature.perrelo.markers, col = greenred(75),scale  = 'row', 
 						     Rowv = TRUE,Colv = FALSE, density.info = 'none',key = TRUE, trace = 'none', 
@@ -439,9 +548,13 @@ heatmap.result <- heatmap.2( mature.perrelo.markers, col = greenred(75),scale  =
 						     hclustfun = function(d) hclust(d, method = 'complete'),
 						     dendrogram = 'row',margins = c(12,9),labRow = NA, srtCol = 30,
 						     lmat = rbind(c(4,0), c(2,1),c(0,3)), lhei = c(1,3, 0.5), lwid = c(1,4));
+
+
+
 mature.perrelo.tree    <- hclust(as.dist(1 - cor(t(mature.perrelo.markers), method='pearson')), method='complete');
 mature.perrelo.result  <- cutree(mature.perrelo.tree, k = 2)
 mature.perrelo.markers <- names(mature.perrelo.result)[mature.perrelo.result == 1]
+fetal.perrelo.markers  <- names(mature.perrelo.result)[mature.perrelo.result == 2]
 
 "
 GSE75
@@ -460,6 +573,7 @@ exprs.data           <- exprs.data[,c('E12.5-1','E12.5-2','E12.5-3',
 probes               <- rownames(exprs.data)
 gene.symbols         <- unlist(mget(probes, mgu74aSYMBOL, ifnotfound = NA))
 
+"
 f1 <- function(x) (IQR(x) > 0.5)
 f2 <- pOverA(0.25, log2(100))
 f3 <- function(x) (median(2^x) > 300)
@@ -467,10 +581,17 @@ f4 <- function(x) (shapiro.test(x)$p.value > 0.05)
 f5 <- function(x) (sd(x)/abs(mean(x)) < 0.1 )
 f6 <- function(x) (sqrt(10) * abs(mean(x))/sd(x) > qt(0.975,9))
 ff <- filterfun(f1,f2,f3,f4,f5,f6)
-
 mature.harvard.markers <- genefilter(exprs.data, ff)
 mature.harvard.name    <- gene.symbols[mature.harvard.markers]
 mature.harvard.markers <- exprs.data[mature.harvard.markers,]
+"
+
+sds <- rowSds(exprs.data)
+hist(sds)
+sh  <- shorth(sds)
+summary(sds)
+mature.harvard.markers <- exprs.data[sds > 0.3,]
+mature.harvard.name    <- gene.symbols[sds > 0.3]
 
 
 heatmap.result <- heatmap.2( mature.harvard.markers, col = greenred(75),scale  = 'row', 
@@ -482,12 +603,44 @@ heatmap.result <- heatmap.2( mature.harvard.markers, col = greenred(75),scale  =
 mature.harvard.tree      <- hclust(as.dist(1 - cor(t(mature.harvard.markers), method='pearson')), method='complete');
 mature.harvard.result    <- cutree(mature.harvard.tree, k = 2)
 mature.harvard.markers   <- mature.harvard.name[mature.harvard.result == 1]
+fetal.harvard.markers    <- mature.harvard.name[mature.harvard.result == 2]
 
 
-mature.genes <- intersect(mature.harvard.markers,mature.perrelo.markers)
-mature.genes <- intersect(mature.perrelo.markers,mature.duncan.markers)
+mature.genes <- intersect(mature.perrelo.markers,mature.perrelo.markers)
+mature.genes <- intersect(mature.genes,mature.duncan.markers)
 mature.genes <- intersect(mature.genes,mature.boyer.markers)
+mature.genes <- mature.genes[!is.na(mature.genes)]
 
+fetal.genes  <-  intersect(fetal.perrelo.markers,fetal.perrelo.markers)
+fetal.genes  <-  intersect(fetal.genes,fetal.duncan.markers)
+fetal.genes  <-  intersect(fetal.genes,fetal.boyer.markers)
+fetal.genes  <- fetal.genes[!is.na(fetal.genes)]
+
+# mature genes ven's graph
+area1 <- length(mature.perrelo.markers)
+area2 <- length(mature.duncan.markers)
+area3 <- length(mature.boyer.markers)
+n12   <- length(intersect(mature.perrelo.markers,mature.duncan.markers))
+n23   <- length(intersect(mature.boyer.markers,mature.duncan.markers))
+n13   <- length(intersect(mature.boyer.markers,mature.perrelo.markers))
+n123  <- intersect(mature.perrelo.markers,mature.duncan.markers)
+n123  <- length( intersect(n123, mature.boyer.markers) )
+
+draw.triple.venn(area1, area2, area3, n12, n23, n13, n123,
+                 alpha = rep(0.5, 3),fill = c('red','blue','green'))
+
+# fetal genes ven's graph
+area1 <- length(fetal.perrelo.markers)
+area2 <- length(fetal.duncan.markers)
+area3 <- length(fetal.boyer.markers)
+n12   <- length(intersect(fetal.perrelo.markers,fetal.duncan.markers))
+n23   <- length(intersect(fetal.boyer.markers,fetal.duncan.markers))
+n13   <- length(intersect(fetal.boyer.markers,fetal.perrelo.markers))
+n123  <- intersect(fetal.perrelo.markers,fetal.duncan.markers)
+n123  <- length( intersect(n123, fetal.boyer.markers) )
+
+draw.triple.venn(area1, area2, area3, n12, n23, n13, n123,
+                 alpha = rep(0.5, 3),fill = c('red','blue','green'))
 setwd('/home/zhenyisong/data/cardiodata')
 save.image(file = 'maturation.Rdata')
 quit("no")
