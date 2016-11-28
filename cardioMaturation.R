@@ -40,6 +40,11 @@ library(org.Hs.eg.db)
 library(mgu74a.db)
 library(RFLPtools)
 library(VennDiagram)
+library(DiagrammeR)
+library(magrittr)
+library(cowplot)
+library(VennDiagram)
+library(clusterProfiler)
 
 
 setwd("C:\\Users\\Yisong\\Desktop")
@@ -235,8 +240,8 @@ duncan.gene <- featureCounts( outputs.files, useMetaFeatures = TRUE,
 #---
 
 
-gene         <- boyer.gene
-gene.counts  <- gene$counts
+#gene         <- boyer.gene
+gene.counts  <- boyer.gene
 gene.ids     <- gene$annotation$GeneID
 colnames(gene.counts)
 colnames(gene.counts) <- c( 'iP0_1','iP0_2','iP0_3','iP4_1','iP4_2','iP4_3',
@@ -282,6 +287,8 @@ vsd.expr                 <- assay(vsd)
 rownames(vsd.expr)       <- gene.exprs$genes$SYMBOL
 colnames(vsd.expr)       <- colnames(gene.counts)
 vsd.subset.exprs         <- vsd.expr[,c('vP0_1','vP0_2','vP4_1','vP4_2','vP7_1','vP7_2','vAd_1','vAd_2')]
+vsd.lineage.exprs        <- vsd.expr[,c('iP0_1','iP0_2','iP0_3','iP4_1','iP4_2','iP4_3',
+                                        'iD7S_1','iD7S_2','iD7S_3','ex0hr_1','ex0hr_2')]
 
 
 #---
@@ -300,12 +307,13 @@ vsd.subset.exprs         <- vsd.expr[,c('vP0_1','vP0_2','vP4_1','vP4_2','vP7_1',
 # (lineweight) separately in one legend?
 # How to scale the size of line and point separately in ggplot2
 #---
-
-boyer.PCA  <- prcomp(t(vsd.subset.exprs))
+vsd.no.na.subset.exprs           <- vsd.subset.exprs[!is.na(rownames(vsd.subset.exprs)),]
+rownames(vsd.no.na.subset.exprs) <- rownames(vsd.subset.exprs)[!is.na(rownames(vsd.subset.exprs))]
+boyer.PCA  <- prcomp(t(vsd.no.na.subset.exprs))
 names(boyer.PCA)
 boyer.cord <- as.data.frame(boyer.PCA$x)
 #biplot(boyer.PCA, scale = 0)
-dim(boyer.cord)
+pc.no <- dim(boyer.cord)[2]
 
 pr.var <- boyer.PCA$sdev^2
 pve    <- pr.var/sum(pr.var)
@@ -318,8 +326,8 @@ ggplot(pve.df) +
         geom_point(aes(x = pca, y = variance), size = 3) +
         geom_line(aes(x = pca, y = variance), size = 0.8) +
         scale_linetype_discrete() +
-        theme(legend.position="none")
-
+        theme(legend.position="none") +
+        theme_gray()
 pvecum.df <- data.frame(variance = cumsum(pve), pca = c(1:8))
 ggplot(pvecum.df) +
         xlab('Principle Component') +
@@ -331,7 +339,7 @@ ggplot(pvecum.df) +
         scale_linetype_discrete() +
         theme(legend.position="none")
 
-boyer.PCA$rotation
+
 
 boyer.cord$color.type<- factor(c(1,1,2,2,3,3,4,4))
 
@@ -341,10 +349,145 @@ ggplot(boyer.cord) +
                                 values = c("black", "blue", "red","green"),
                                 labels = c( '0 day postnatal ventricle, P0',
                                             '4 day postnatal ventricle, P4',
-                                            '7 day postnatal ventricle, P7','adult')) +
+                                             '7 day postnatal ventricle, P7','adult')) +
+           theme_gray() + 
            theme(legend.position = c(0.65, 0.2),legend.title.align = 0.5)
-plot(boyer.PCA$x, col = "white",main = "PC plot")
-text(boyer.PCA$x[,1],boyer.PCA$x[,2],labels = colnames(vsd.subset.exprs), cex = 0.7)
+           
+
+
+rotations <- order(boyer.PCA$rotation[,1], decreasing = FALSE)
+gene.len  <- 200
+total.len <- length(rownames(vsd.no.na.subset.exprs))
+mature.boyer.markers <- unique(c( rownames(vsd.no.na.subset.exprs)[rotations[1:gene.len]],
+                                  rownames(vsd.no.na.subset.exprs)[rotations[(total.len - gene.len):total.len]] ) )
+
+mature.markers.pca.exprs <- vsd.subset.exprs[mature.markers,]
+
+heatmap.result <- heatmap.2( mature.markers.pca.exprs, col = greenred(75),scale  = 'row', 
+						     Rowv = TRUE,Colv = FALSE, density.info = 'none',key = TRUE, trace = 'none', 
+						     cexCol = 1.5,distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
+						     hclustfun = function(d) hclust(d, method = 'complete'),
+						     dendrogram = 'row',margins = c(12,9),labRow = NA, srtCol = 30,
+						     lmat = rbind(c(4,0), c(2,1),c(0,3)), lhei = c(1,3, 0.5), lwid = c(1,4));
+
+mature.markers.pca.exprs <- vsd.lineage.exprs[mature.markers,]
+
+#---
+# Boyer data 
+# analyse the same data set from boyer lab and 
+# find the lineage specifc genes using PCA
+# we would like to test if the data result can be replicated
+#---
+vsd.no.na.lineage.exprs           <- vsd.lineage.exprs[!is.na(rownames(vsd.lineage.exprs)),]
+rownames(vsd.no.na.lineage.exprs) <- rownames(vsd.lineage.exprs)[!is.na(rownames(vsd.lineage.exprs))]
+boyer.lineage.PCA  <- prcomp(t(vsd.no.na.lineage.exprs))
+names(boyer.lineage.PCA)
+boyer.lineage.cord <- as.data.frame(boyer.lineage.PCA$x)
+#biplot(boyer.PCA, scale = 0)
+pc.no <- dim(boyer.lineage.cord)[2]
+
+pr.var <- boyer.lineage.PCA$sdev^2
+pve    <- pr.var/sum(pr.var)
+pve.df <- data.frame(variance = pve, pca = c(1:pc.no))
+ggplot(pve.df) +
+        xlab('Principle Component') +
+        ylab('Proportion of Variance Explained') +
+        scale_x_continuous( breaks = c(1:pc.no), labels = as.character(c(1:pc.no), 
+                            limits = as.character(c(1:pc.no)))) +
+        geom_point(aes(x = pca, y = variance), size = 3) +
+        geom_line(aes(x = pca, y = variance), size = 0.8) +
+        scale_linetype_discrete() +
+        theme(legend.position="none")
+
+pvecum.df <- data.frame(variance = cumsum(pve), pca = c(1:pc.no))
+ggplot(pvecum.df) +
+        xlab('Principle Component') +
+        ylab('Culmulative Proportion of Variance Explained') +
+        scale_x_continuous( breaks = c(1:pc.no), labels = as.character(c(1:pc.no), 
+                            limits = as.character(c(1:pc.no)))) +
+        geom_point(aes(x = pca, y = variance), size = 3) +
+        geom_line(aes(x = pca, y = variance),size = 0.8) +
+        scale_linetype_discrete() +
+        theme(legend.position="none")
+
+boyer.lineage.cord$color.type<- factor(c(1,1,1,2,2,2,3,3,3,4,4))
+
+ggplot(boyer.lineage.cord) + 
+           geom_point(aes(x = PC1, y = PC2, color = color.type), size = 3) + 
+           scale_colour_manual( name   = 'isolated cardiomyocyte developement stages',
+                                values = c("black", "blue", "red","green"),
+                                labels = c( '0 day isolated cardiomyocytes, P0',
+                                            '4 day isolated cardiomyocytes, P4',
+                                            '7 day isolated cardiomyocytes, P7','adult')) +
+           theme(legend.position = 'bottom',legend.direction = 'vertical') + 
+           guides( color = guide_legend(title.position = 'top') )
+
+ggplot(boyer.lineage.cord) + 
+           geom_point(aes(x = PC2, y = PC3, color = color.type), size = 3) + 
+           scale_colour_manual( name   = 'isolated cardiomyocyte developement stages',
+                                values = c("black", "blue", "red","green"),
+                                labels = c( '0 day isolated cardiomyocytes, P0',
+                                            '4 day isolated cardiomyocytes, P4',
+                                            '7 day isolated cardiomyocytes, P7','adult')) +
+           theme(legend.position = 'bottom',legend.direction = 'vertical') + 
+           guides( color = guide_legend(title.position = 'top') )
+
+rotations <- order(boyer.lineage.PCA$rotation[,1], decreasing = FALSE)
+gene.len  <- 200
+total.len <- length(rownames(vsd.no.na.lineage.exprs))
+mature.lineage.boyer.markers <- unique(c( rownames(vsd.no.na.lineage.exprs)[rotations[1:gene.len]],
+                                           rownames(vsd.no.na.lineage.exprs)[rotations[(total.len - gene.len):total.len]] ) )
+
+##---
+## this is the test V graph
+## 
+
+area1 <- length(mature.boyer.markers)
+area2 <- length(mature.lineage.boyer.markers) 
+cross.area <- length(intersect(mature.boyer.markers,mature.lineage.boyer.markers))
+
+draw.pairwise.venn( area1, area2, cross.area,
+                    category = c('ventricle','cardiomyocyte'),
+                    fill     = c('purple','blue'),
+                    alpha    = 0.8,
+                    ext.text = F,
+                    cat.col  = c('green','green'),
+                    cat.cex  = c(1.5,1.5),
+                    cat.just = list(c(-0.5,2),c(1.2,1)),
+                    label.col= c('yellow','yellow','yellow'),
+                    lwd      = c(0.5,2),
+                    cex      = c(2,3,2)
+                   )  
+
+
+#---
+#
+#---
+"
+read the curated mature/immature dataset
+"
+setwd("E:\\FuWai\\wangli.lab")
+curated.filename  <- 'cardio_manual_maturation_markers.xlsx'
+curated.file.df   <- read.xlsx(curated.filename, sheetIndex = 1, header = TRUE)
+intersect(curated.file.df$geneSymbol, mature.lineage.boyer.markers)
+#---
+# KEGG analysis
+#--- START
+
+common.names   <- intersect(mature.boyer.markers,mature.lineage.boyer.markers)
+gene.entrez.id <- unlist( mget(x = common.names, envir = org.Mm.egALIAS2EG) )
+
+kegg.table     <- enrichKEGG( gene.entrez.id, organism = "mouse", 
+                              pvalueCutoff  = 0.05, 
+                              pAdjustMethod = "BH", 
+                              qvalueCutoff  = 0.1, readable = TRUE)
+kegg.result       <- summary(kegg.table)
+kegg.qvalue       <- -log(kegg.result$qvalue)
+kegg.pathway.name <- kegg.result$Description
+
+#---
+# KEGG has negative report on pahtway enrichment analysis
+#--- END
 "
 f1 <- function(x) (IQR(x) > 0.5)
 f2 <- pOverA(0.25, log2(100))
@@ -402,6 +545,7 @@ fetal.boyer.markers  <- names(mature.boyer.result)[mature.boyer.result == 2]
 
 
 "
+duncan set
 GSE49906,SRP029464
 "
 gene         <- duncan.gene
@@ -424,20 +568,20 @@ GeneInfo <- select( org.Mm.eg.db, keys= as.character(gene.ids),
                    keytype="ENTREZID", columns = columns);
 m        <- match(gene$annotation$GeneID, GeneInfo$ENTREZID);
 Ann      <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
-                          GeneInfo[m, c("SYMBOL", "MGI", "GENENAME")]);
+                          GeneInfo[m, c("SYMBOL", "MGI", "GENENAME")])
 
-rownames(gene.counts) <- GeneInfo[m,'SYMBOL'];
-
-Ann$Chr  <-  unlist( lapply(strsplit(Ann$Chr, ";"), 
-                    function(x) paste(unique(x), collapse = "|")))
-Ann$Chr  <- gsub("chr", "", Ann$Chr)
+Ann$Chr    <-  unlist( lapply(strsplit(Ann$Chr, ";"), 
+                            function(x) paste(unique(x), collapse = "|")))
+Ann$Chr    <- gsub("chr", "", Ann$Chr)
 gene.exprs <- DGEList(counts = gene.counts, genes = Ann)
 gene.exprs <- calcNormFactors(gene.exprs)
 dge.tmm                  = t(t(gene.exprs$counts) * gene.exprs$samples$norm.factors)
 #dge.tmm.counts <- round(dge.tmm, digits = 0)
 dge.tmm.counts           <- apply(dge.tmm,2, as.integer)
 
-sample.info              <- data.frame( treat  = c('PN90','PN28','PN10','PN1','E17') )
+sample.info              <- data.frame( treat  = c( 'PN90','PN28','PN10','PN1','E17','fPN60',
+                                                    'fPN28','fPN1-3','fPN1-2','cPN67',
+                                                    'cPN30','cPN1-2','cPN1') )
                                                 
 dds                      <- DESeqDataSetFromMatrix( countData = dge.tmm.counts,
                                                     colData   = sample.info,
@@ -445,7 +589,9 @@ dds                      <- DESeqDataSetFromMatrix( countData = dge.tmm.counts,
 vsd                      <- varianceStabilizingTransformation(dds);
 vsd.expr                 <- assay(vsd)
 rownames(vsd.expr)       <- gene.exprs$genes$SYMBOL
-colnames(vsd.expr)       <- colnames(gene.counts)[1:5]
+#colnames(vsd.expr)       <- colnames(gene.counts)[1:5]
+colnames(vsd.expr)       <- colnames(gene.counts)
+duncan.lineage.epxrs     <- vsd.expr[,
 
 "
 f1 <- function(x) (IQR(x) > 0.5)
@@ -644,3 +790,30 @@ draw.triple.venn(area1, area2, area3, n12, n23, n13, n123,
 setwd('/home/zhenyisong/data/cardiodata')
 save.image(file = 'maturation.Rdata')
 quit("no")
+
+#
+# flowchart creation
+#
+
+
+graph <-
+    create_graph() %>%
+    set_graph_name("Flow Chart of Mature gene selection") %>%
+    set_global_graph_attrs("graph", "overlap", "true") %>%
+    set_global_graph_attrs("node", "color", "black") %>%
+    set_global_graph_attrs("node", "fontname", "Helvetica") %>%
+    add_n_nodes(5) %>%
+    select_nodes_by_id(c(1:5)) %>% 
+    set_node_attrs_ws("shape", "ellipse") %>%
+    clear_selection %>%
+    add_edges_w_string(
+      "1->2 2->3 3->4 5->3", "black") %>%
+    set_node_attrs("label",c( 'PCA analysis','loading selection',
+                              'gene intersection','mature/immature\ngeneset',
+                              'Hierarchical clustering')) %>%
+    set_node_attrs("fontsize",12) %>%
+    set_edge_attrs("arrowsize", 1)
+
+plot.A <- render_graph(graph)
+
+plot_grid(plot.B,plot.C, labels = c("A", "B"), ncol = 2, align = 'h')
