@@ -13,6 +13,15 @@
 ## #python -m HTSeq.scripts.count -f bam -r name -s no $base.sorted.bam $gtf > $base.txt
 ##---
 
+#---
+# unique mapping read
+#    see the hisat2 manual: 
+#        https://ccb.jhu.edu/software/hisat2/manual.shtml
+#        SAM output
+#    see the discussion
+#        https://www.researchgate.net/post/How_can_I_get_uniquely_mapped_reads_from_Tophatv2012
+#--- 
+
 source /etc/profile
 ##----------------------------------------------------------
 ## old index file was broken, I do not know why.
@@ -42,38 +51,42 @@ len=${#files1[@]}
 
 cd /home/zhenyisong/data/cardiodata/SRP012040/hisat2
 
-###---
-### this is dangerous!!!!
-###---
-###rm -rf *
-##
-##for (( i=0; i<${len}; i++ ));
-##do
-##    forward=${files1[$i]}
-##    backward=${files2[$i]}
-##    base=${forward%_1.fastq}
-##    $hisat2/hisat2 -p 4 --dta -x $mm10_index/genome -1 $fastq/$forward -2 $fastq/$backward -S  $base.sam
-##    samtools view -bS $base.sam > $base.unsorted.bam
-##    samtools sort -@ 8 $base.unsorted.bam $base
-##    $stringtie -p 4 -G $gtf -o $base.gtf -l $base $base.bam
-##    
-##done
-##
-##ls *.gtf > $mergelist
-##
-##$stringtie --merge -p 4 -G $gtf -o $merge_gtf $mergelist
-##
-###rm -rf ballgown
-###mkdir ballgown
+#---
+# this is dangerous!!!!
+#---
+#rm -rf *
 
 for (( i=0; i<${len}; i++ ));
 do
     forward=${files1[$i]}
+    backward=${files2[$i]}
     base=${forward%_1.fastq}
-    #$stringtie -e -B -p 4 -G $merge_gtf -o  ballgown/$base/$base.gtf $base.bam
-    $stringtie -e -B -p 4 -G $gtf -o  ballgown/$base/$base.gtf $base.bam
+    #$hisat2/hisat2 -p 4 --dta -x $mm10_index/genome -1 $fastq/$forward -2 $fastq/$backward -S  $base.sam
+    samtools view -H $base.sam > header.temp.sam
+    samtools view $base.sam | grep -w "NH:i:1" | cat header.temp.sam - | samtools view -Sb - |samtools sort -@ 8 - $base
+    $stringtie -e -B -p 8 -G $gtf -o ballgown/$base/$base.gtf $base.bam
+    
 done
 
 $preDE -i ballgown
+rm header.temp.sam
 
-##rm *.sam *unsorted.bam
+cd /home/zhenyisong/data/cardiodata/SRP047225
+files=(*.fastq)
+len=${#files[@]}
+fastq='/home/zhenyisong/data/cardiodata/SRP047225'
+
+cd /home/zhenyisong/data/cardiodata/SRP047225/hisat2
+for (( i=0; i<${len}; i++ ));
+do
+    filename=${files[$i]}
+    base=${filename%.fastq}
+    #$hisat2/hisat2 -p 8 --dta -x $mm10_index/genome -U $fastq/$filename -S $base.sam
+    samtools view -H $base.sam > header.temp.sam
+    samtools view $base.sam | grep -w "NH:i:1" | cat header.temp.sam - | samtools view -Sb - |samtools sort -@ 8 - $base
+    $stringtie -e -B -p 8 -G $gtf -o ballgown/$base/$base.gtf $base.bam
+done
+
+
+$preDE -i ballgown
+rm header.temp.sam

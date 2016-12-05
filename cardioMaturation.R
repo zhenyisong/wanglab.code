@@ -446,6 +446,10 @@ area1 <- length(mature.boyer.markers)
 area2 <- length(mature.lineage.boyer.markers) 
 cross.area <- length(intersect(mature.boyer.markers,mature.lineage.boyer.markers))
 
+setwd('C:/Users/Yisong/Desktop')
+common.common <- intersect(mature.boyer.markers,mature.lineage.boyer.markers)
+write.xlsx(file = 'common_set.xlsx', common.common)
+
 draw.pairwise.venn( area1, area2, cross.area,
                     category = c('ventricle','cardiomyocyte'),
                     fill     = c('purple','blue'),
@@ -814,6 +818,6 @@ graph <-
     set_node_attrs("fontsize",12) %>%
     set_edge_attrs("arrowsize", 1)
 
-plot.A <- render_graph(graph)
+plot.A <- render_graph(graph, output = "SVG")
 
 plot_grid(plot.B,plot.C, labels = c("A", "B"), ncol = 2, align = 'h')

@@ -1,0 +1,17 @@
+#!/bin/bash
+#PBS -k o
+#PBS -l nodes=1:ppn=8:dc,vmem=32gb,walltime=15:00:00 
+#PBS -M zhenyisong@gmail.com 
+#PBS -m abe
+#PBS -N Fastq-dump 
+#PBS -j oe
+#PBS -e /home/zhenyisong/data/cardiodata/SRP012040
+#PBS -o /home/zhenyisong/data/cardiodata/SRP012040
+
+cd /home/zhenyisong/data/cardiodata/SRP012040
+files='ls *.sra'
+fastdump='/data/software/bin/sratoolkit.2.4.5-2-centos_linux64/bin/fastq-dump.2.4.5'
+for file in $files;do
+
+    $fastdump --split-3 $file
+done

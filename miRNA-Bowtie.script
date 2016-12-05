@@ -1,0 +1,56 @@
+#!/bin/bash
+#PBS -k o
+#PBS -l nodes=1:ppn=8:dc,vmem=32gb,walltime=48:00:00 
+#PBS -M zhenyisong@gmail.com 
+#PBS -m abe
+#PBS -N miRNA
+#PBS -j oe
+#PBS -e /home/zhenyisong/data/cardiodata/SRP057170
+#PBS -o /home/zhenyisong/data/cardiodata/SRP057170
+
+
+## http://seqanswers.com/forums/showthread.php?t=3775
+## http://stackoverflow.com/questions/947897/block-comments-in-a-shell-script
+
+## -a/--all
+## Report all valid alignments per read or pair (default: off)
+## -k <int>
+## Report up to <int> valid alignments per read or pair (default: 1)
+## -m <int>
+## Suppress all alignments for a particular read or pair if more than <int> reportable alignments exist for it.
+## -n/--seedmms <int>
+## Maximum number of mismatches permitted in the "seed",
+## -v <int>
+## Report alignments with at most <int> mismatches
+## -l/--seedlen <int>
+## The "seed length"; i.e., the number of bases on the high-quality end of the read to
+## --best
+## Make Bowtie guarantee that reported singleton alignments are "best" in terms of stratum
+## --strata
+## If many valid alignments exist and are reportable 
+## -e/--maqerr <int>
+## Maximum permitted total of quality values at all mismatched read positions throughout the entire 
+
+#bowtie -a -n 0 -l 15 -e 99999 -k 200  --best --strata --chunkmbs 128
+#bowtie genome -p 10 -a --best --strata -l 10 -m 1 --chunkmbs 128 -q --sam SRR1973857.fastq >SRR1973857.sam
+#bowtie human --best --strata -k 200 -a -n 0 -l 15 -e 9999 --chunkmbs 500 -q --sam SRR039611.fastq >SRR039611.sam
+##bowtie genome -p 10 -v 0 -a --best --strata -norc -q --sam SRR039611.fastq >SRR039611.sam
+#bowtie mature_hsa -p 8 -v 0 -a --best --strata -norc -q --sam SRR039611.fastq >SRR039611.sam
+#bowtie mature_hsa -p 8 -n 1 -l 8 -a --best --strata -q --sam SRR039611.fastq >SRR039611.sam
+#samtools view -bS SRR1973857.sam | samtools sort -n -@ 8 - SRR1973857
+
+source /etc/profile
+cd /home/zhenyisong/data/cardiodata/SRP057170
+bowtie='/usr/local/bin/bowtie'
+files=(*.fastq)
+len=${#files[@]}
+for (( i=0; i<${len}; i++ ));
+do
+    filename=${files[$i]}
+    base=${filename%.fastq}
+    bowtie genome -p 10 -a --best --strata -l 10 -m 1 --chunkmbs 128 -q --sam $base.fastq > $base.sam
+    samtools view -bS $base.sam | samtools sort -n -@ 8 - $base
+    python -m HTSeq.scripts.count -s no -r name -f bam -t miRNA_primary_transcript -m union -i Name S$base.bam mmu.gff3 > $base.txt
+done
+
+
