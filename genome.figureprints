@@ -1,0 +1,31 @@
+#!/bin/bash
+
+## genome assemble from UCSC
+hg19='/wa/zhenyisong/bringback/igenome/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/genome.fa'
+hg38='/wa/zhenyisong/bringback/igenome/Homo_sapiens/UCSC/hg38/hg38.fa'
+mm9='/wa/zhenyisong/bringback/igenome/Mus_musculus/UCSC/mm9/Sequence/WholeGenomeFasta/genome.fa'
+mm10='/wa/zhenyisong/bringback/igenome/Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome.fa'
+
+## genome assemble from NCBI
+ncbi='/home/zhenyisong/data/bringback/igenome/Homo_sapiens/NCBI/GRCh38/Sequence/WholeGenomeFasta/genome.fa'
+
+
+shasum $hg19
+#9ac61a579da8e9064f186e8dd169046c6212fe3c
+shasum $hg38
+#c44a85ab746fe98ce1945022c643a4c289d2f3ce
+shasum $mm9
+#a15069549f5173b6a304bc1510d94b016cf79acf
+shasum $mm10
+#cb1c143e33b92186bfcd983a82b06f5039c887fa
+
+shasum $ncbi
+#09b3f6ab110124cb230d028c3689f803f2a95fba
+
+bowtie1_mm10='/home/zhenyisong/data/genome/mm10_Bowtie1Index/mm10.fa'
+shasum $bowtie1_mm10
+#eddc312e1d5697bfe6ee6924de9a7bdea90370e1
+mm_genome='/home/zhenyisong/data/genome/Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome.fa'
+shasum $mm_genome
+#fbf9fc1063578d0ba0bfc46663acb39bdd085515
+diff -qa $mm_genome $mm10
