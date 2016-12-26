@@ -1,0 +1,21 @@
+## http://rseqc.sourceforge.net/
+## Trimmomatic: A flexible read trimming tool for Illumina NGS data
+## http://www.usadellab.org/cms/
+## cat > illuminaSmallRNA.fa
+## the small RNA adaptors were curated from
+## http://blog.sciencenet.cn/blog-777771-612299.html
+## the above blog contains numerous adoptor sequences from Illumina
+## http://blog.sciencenet.cn/blog-777771-620367.html
+## the above blog contains
+##---
+trim='/home/zhenyisong/data/software/bin/Trimmomatic-0.36/trimmomatic-0.36.jar'
+adaptor='/home/zhenyisong/data/software/bin/Trimmomatic-0.36/adapters/illuminaSmallRNA.fa'
+#java -jar $trim SE -phred33 -threads 8 SRR1922516.fastq SRR1922516.trimed.fastq  ILLUMINACLIP:$adaptor:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15
+java -jar $trim SE -phred33 -threads 8 SRR1922516.fastq SRR1922516.trimed.fastq  CROP:27 HEADCROP:2
+##---
+## https://www.biostars.org/p/59640/
+## how to remove the adaptor from reads
+##---
+cutadapt -e 0.15 -O 7 -m 15 -a TGGAATTCTCGGGTGCCAAGG SRR1922516.fastq -o SRR1922516.cutadapt.fastq
+
+infer_experiment.py -i results/SRR4044061_1.fastq.bam -r /home/zhenyisong/data/genome/mm10_RefSeq.bed

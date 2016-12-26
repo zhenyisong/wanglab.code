@@ -1,0 +1,62 @@
+## I downloaded NONCODE2016_mouse_mm10_current_lncRNA.gtf from the NONCODE database
+## wget -c -t 0 http://noncode.org/datadownload/NONCODE2016_mouse_mm10_current_lncRNA.gtf.gz
+## I downloaded mm10-simpleRepeat.bed from UCSC genome browser
+##  For repeat region annotation file, we recommand you download the 
+## simpleRepeat track from UCSC for
+## your species. If you do
+## not want to use this filter in sebnif or you do not have the 
+## annotation file, use '/dev/null' as the parameter.
+## you have to manually rename the dir name in install dir in sebnif-1.3rc
+## from iSeeRNA-1.2-??? to iSeeRNA and delete the same name but the old executive 
+## script.
+##
+
+sebnif='/data/software/bin/sebnif-1.3rc/sebnif'
+lncRNAgtf='/home/zhenyisong/data/genome/lncRNA/NONCODE2016_mouse_mm10_current_lncRNA.gtf'
+wholeRNAgtf='/home/zhenyisong/data/genome/lncRNA/mm10_lnc.protein.all.gtf'
+mm10_gtf='/home/zhenyisong/data/genome/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf'
+hisat2lncRNA='/home/zhenyisong/data/cardiodata/SRP082390/hisat2/stringtie_merged.gtf'
+mm10_repeat='/home/zhenyisong/data/genome/lncRNA/mm10-simpleRepeat.bed'
+anno_maker='/data/software/bin/sebnif-1.3rc/util/anno_maker/anno_maker'
+auto_download='/data/software/bin/sebnif-1.3rc/iSeeRNA/auto_download_data.sh'
+configuration_iRNAsee='/data/software/bin/sebnif-1.3rc/iSeeRNA/conf'
+iSeeRNA='/data/software/bin/sebnif-1.3rc/iSeeRNA/iSeeRNA'
+test='/home/zhenyisong/data/cardiodata/SRP082390/tophat/SRR4044050_cufflink/transcripts.gtf'
+
+## download the annotion from sun, kun lab, the site in HK
+##----
+$auto_download mm10
+
+## save the figureprint of the file
+##---
+
+##shasum $wholeRNAgtf
+##a97ad1bca173197844e4d696095a84f976c3e96f
+##shasum $mm10_gtf
+##eccbf3fc639af85e6ddd490ab0910bcbc84fa8fb
+
+## combine the two ref GTF set in one
+## according to the suggestions from Dr. Sun, Kun
+##---
+
+cd /home/zhenyisong/data/genome/lncRNA
+cat $lncRNAgtf $mm10_gtf >> mm10_lnc.protein.all.gtf
+
+## generate our own annotation file
+##---
+$anno_maker $wholeRNAgtf $mm10_repeat Mus10 mm10-wholeRNA-NONCODE
+
+perl $iSeeRNA -c $configuration_iRNAsee/mm10.conf -i $hisat2lncRNA -o test_temp_zhen3
+perl $iSeeRNA -c $configuration_iRNAsee/mm10.conf -i novel.pass.gtf -o test_temp_zhen3
+
+
+$anno_maker $lncRNAgtf $mm10_repeat Mus10 mm10-lincRNA-NONCODE
+$auto_download mm10
+
+
+cd /data/software/bin/sebnif-1.3rc/iSeeRNA-1.2.bin/conf
+cp mm10.conf Mouse.conf
+
+example='/data/software/bin/sebnif-1.3rc/example/HSkMC.gff'
+$sebnif -g Mus10 -r mm10-lincRNA-NONCODE -o test_temp_zhen3/sebnif $hisat2lncRNA
+$sebnif -g Mus10 -r mm10-lincRNA-NONCODE -o test_temp_zhen3/sebnif $test
