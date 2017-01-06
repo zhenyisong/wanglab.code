@@ -42,6 +42,7 @@ library(pathview)
 # call the old saved data from image file
 
 setwd('/home/zhenyisong/data/wanglilab/wangcode')
+setwd("C:\\Users\\Yisong\\Desktop")
 load(file = 'rsubread_limma.Rdata')
 
 "
@@ -240,12 +241,22 @@ gene.result = topTable(  fit2,
                          number        = Inf, 
                          adjust.method = "BH", 
                          sort.by       = "p");
-write.table( gene.result, file = "vsmc_all.txt", quote = FALSE, 
-             sep = "\t", row.names = TRUE, col.names = TRUE);
-gene.result = topTable( fit2, number = Inf, 
-                        adjust.method="BH", sort.by="p",
-                        lfc = 0.58, p.value = 0.05);
 
+
+setwd("E:\\CardioSignal\\publicData")
+file.name <- 'transfac.name.final.table'
+tf.whole.set <- read.table(file.name, header = FALSE)
+tf.exprs.log <- vsd.expr[rownames(vsd.expr) %in% tf.whole.set$V1,]
+tf.gene.result <- gene.result[gene.result$SYMBOL %in% tf.whole.set$V1, ]
+setwd("C:\\Users\\Yisong\\Desktop")
+write.xlsx( gene.result, file = "vsmc_all.xlsx", row.names = TRUE, col.names = TRUE);
+write.xlsx( tf.exprs.log, file = "tf_exprs_all.xlsx", row.names = TRUE, col.names = TRUE);
+write.xlsx(tf.gene.result, file = 'tf.dge.xlsx',row.names = TRUE, col.names = TRUE);
+
+##gene.result = topTable( fit2, number = Inf, 
+##                        adjust.method="BH", sort.by="p",
+##                        lfc = 0.58, p.value = 0.05);
+##
 #write.table( gene.result, file = "vsmc.xls", quote = FALSE, 
 #             sep = "\t", row.names = TRUE, col.names = TRUE);
 
@@ -277,6 +288,11 @@ x = barplot( kegg.qvalue, cex.lab = 0.8,cex.axis= 0.8,
 text( cex = 0.6, x = x - 0.25, y = -1.25, 
       kegg.pathway.name, 
       xpd = TRUE, srt = 50, pos = 2)
+
+# this Figure is from the code 
+# http://www.bioconductor.org/packages/release/bioc/vignettes/clusterProfiler/inst/doc/clusterProfiler.html
+dotplot(kegg.table)
+enrichMap(kegg.table)
 
 
 go.table = enrichGO( gene.entrez.id, organism = "mouse",
