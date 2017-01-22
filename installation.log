@@ -1,0 +1,103 @@
+# I add the nameserver
+cd /etc
+vi resolv.conf
+# add the general DNS name
+# 8.8.8.8
+
+# install the R package
+# first install extra package library
+yum install epel-release
+yum install R
+
+# check the disk size
+df -hl
+df -h /home
+#---
+# add the user 
+# yupeng create his own account
+# the following step create a user in /home/
+# dir and besides, create the group with the 
+# the same user name
+# this is a quick and dirty way in system administration
+#----
+useradd zhenyisong
+
+# install MACS2
+#  -y, --assumeyes       
+#    answer yes for all questions
+yum -y install python-pip
+pip install MACS2
+
+# pip support unstall procedure
+#---
+
+
+# install BEDtools2
+# not from Github version
+# please see its official site to
+# find the RPM package
+#---
+# BEDTools-2.26.0-1.el7.x86_64
+yum install BEDTools
+
+# samtools.x86_64 0:0.1.19-7.el7
+yum install samtools
+
+
+yum install gnuplot
+yum install perl-XML-Simple
+rpm -ivh bcl2fastq-1.8.4-Linux-x86_64.rpm
+
+# install git version control
+#---
+yum install git
+
+# install HOMER
+# personal software installation dir
+cd /
+mkdir bioware
+chmod 777 bioware
+cd /bioware/subread-1.5.1-Linux-x86_64
+chmod -R 755 bin
+
+cd /bioware
+mkdir homer
+cd homer
+wget http://homer.salk.edu/homer/configureHomer.pl&
+nohup perl configureHomer.pl -install mm9&
+nohup perl configureHomer.pl -install mm10&
+nohup perl configureHomer.pl -install hg19&
+nohup perl configureHomer.pl -install hg38&
+
+vi /etc/profile
+
+# intall R and R related package
+# mirror site choice
+# I do not know if tsinghua has mirror file 
+# for biocLite.R
+# I try Janpan version
+# but from there :https://www.bioconductor.org/about/mirrors/
+# we can choose the source file for biocLite.R
+# I test China mirror file but failed.
+# dicarded!!!
+# source("http://mirrors.tuna.tsinghua.edu.cn/bioconductor/biocLite.R")
+# source("http://mirrors.ustc.edu.cn/bioc//biocLite.R")
+# choose which CRAN, mirror site automatically assigned by the CLOUD
+# server
+install.packages("devtools",repos = "http://cloud.r-project.org")
+install.packages("devtools",repos = "https://mirrors.tuna.tsinghua.edu.cn/CRAN/")
+install.packages(c("cluster","factoextra"),repos = '')
+# But how to set the mirror site for CRAN?
+#---
+source("http://bioconductor.org/biocLite.R")
+source("https://bioc.ism.ac.jp/biocLite.R")
+source("http://mirrors.ebi.ac.uk/bioconductor/biocLite.R")
+source("http://bioconductor.fmrp.usp.br/biocLite.R");
+options(BioC_mirror="http://mirrors.tuna.tsinghua.edu.cn/bioconductor") 
+
+#
+# install Teamviewer
+# Launching Teamviewer remotely through SSH
+#---
+rpm --import TeamViewer_Linux_PubKey.asc
+rpm -i teamviewer.i686.rpm
