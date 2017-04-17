@@ -1,0 +1,172 @@
+#!/bin/bash 
+# @author Yisong Zhen
+# @since 2017-02-22
+# @parameter
+#     @spiece:
+#            mm10, hg38
+#     @bam_file_name
+#     @strand_specificity
+#     @
+# picard.script mm10 *.bam none false zhen34.temp
+#     
+# see more help on picard
+# http://broadinstitute.github.io/picard/command-line-overview.html
+#
+# how to generate the refflat file
+# for mm10
+# please download the corresponding file from here
+# http://hgdownload.cse.ucsc.edu/goldenPath/mm10/database/
+# http://hgdownload.cse.ucsc.edu/goldenPath/mm10/database/refFlat.txt.gz
+# http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/refFlat.txt.gz
+# then I renamed to refFlat_mm10.txt
+# mv refFlat.txt refFlat_mm10.txt
+# mv refFlat.txt refFlat_hg38.txt
+
+# how to generate mm10_ribosome_interval_list.txt"
+# see: https://www.biostars.org/p/120145/
+# see:http://seqanswers.com/forums/showthread.php?p=136425
+# You can find the intervals using the UCSC Table browser. 
+# For this, you go to 
+# http://genome.ucsc.edu/cgi-bin/hgTables
+# and then set group:all tables, table:rmsk, 
+# and filter to "repClass (does match) rRNA" 
+# then output it as a GTF file.
+# 
+
+# CollectRnaSeqMetrics: Options choice
+# Please see the CollectRnaSeqMetrics definitions for a complete description of the metrics produced by this tool.
+# Option	Description
+# @REF_FLAT (File)	Gene annotations in refFlat form. 
+# Format described here: http://genome.ucsc.edu/goldenPath/gbdDescriptionsOld.html#RefFlat Required.
+# @RIBOSOMAL_INTERVALS (File)	
+# Location of rRNA sequences in genome, in interval_list format. 
+# If not specified no bases will be identified as being ribosomal. 
+# Format described here: Default value: null.
+# @STRAND_SPECIFICITY (StrandSpecificity)	
+# For strand-specific library prep. 
+# For unpaired reads, use FIRST_READ_TRANSCRIPTION_STRAND 
+# if the reads are expected to be on the transcription strand. Required. 
+# Possible values: {NONE, FIRST_READ_TRANSCRIPTION_STRAND, SECOND_READ_TRANSCRIPTION_STRAND}
+# @MINIMUM_LENGTH (Integer)	When calculating coverage based values (e.g. CV of coverage) 
+# only use transcripts of this length or greater. Default value: 500. 
+# This option can be set to 'null' to clear the default value.
+# @CHART_OUTPUT (File)	The PDF file to write out a plot of normalized position vs. coverage. Default value: null.
+# @IGNORE_SEQUENCE (String)	If a read maps to a sequence specified with this option, all the 
+# bases in the read are counted as ignored bases. These reads are not counted as Default value: null. 
+# This option may be specified 0 or more times.
+# RRNA_FRAGMENT_PERCENTAGE (Double)	
+# This percentage of the length of a fragment must overlap one of the ribosomal 
+# intervals for a read or read pair to be considered rRNA. 
+# Default value: 0.8. This option can be set to 'null' to clear the default value.
+# METRIC_ACCUMULATION_LEVEL (MetricAccumulationLevel)	
+# The level(s) at which to accumulate metrics. Default value: [ALL_READS]. 
+# This option can be set to 'null' to clear the default value. 
+# Possible values: {ALL_READS, SAMPLE, LIBRARY, READ_GROUP} 
+# This option may be specified 0 or more times. 
+# This option can be set to 'null' to clear the default list.
+# @INPUT (File)	Input SAM or BAM file. Required.
+# @OUTPUT (File)	File to write the output to. Required.
+# @ASSUME_SORTED (Boolean)	If true (default), then the sort order in the header file will be ignored. 
+# Default value: true. This option can be set to 'null' to clear the default value. Possible values: {true, false}
+# @STOP_AFTER (Long)	Stop after processing N reads, mainly for debugging. 
+# Default value: 0. This option can be set to 'null' to clear the default value.
+#---end
+# I mkdir the picardlib in the /bioware directory
+
+
+#
+#
+# samtools sort -m 1000000000  input.bam input.sorted.bam
+# samtools index input.sorted.bam
+# 
+JAR="/bioware/picardlib/picard.jar"
+REFFLAT_mm10="/bioware/picardlib/refFlat_mm10.txt"
+REFFLAT_hg19='/bioware/picardlib/refFlat_hg19.txt'
+REFFLAT_hg38='/bioware/picardlib/refFlat_hg38.txt'
+RIBO_INTERVAL_LIST_mm10="/bioware/picardlib/mm10_ribosome_interval_list.txt"
+RIBO_INTERVAL_LIST_hg38="/bioware/picardlib/hg38_ribosome_interval_list.txt"
+RIBO_INTERVAL_LIST_hg19="/bioware/picardlib/hg19_ribosome_interval_list.txt"
+
+
+# input parameters
+
+SPIECES=$1
+BAMFILE=$2
+STRAND=$3
+SORTED=$4
+OUTPUT=$5
+
+
+case ${SPIECES} in
+    mm10)   REFFLAT=${REFFLAT_mm10}
+            RIBO_INTERVAL_LIST=${RIBO_INTERVAL_LIST_mm10}
+            ;;
+    hg19)   REFFLAT=${REFFLAT_hg19}
+            RIBO_INTERVAL_LIST=${RIBO_INTERVAL_LIST_hg19}
+            ;;
+    hg38)   REFFLAT=${REFFLAT_hg38}
+            RIBO_INTERVAL_LIST=${RIBO_INTERVAL_LIST_hg38}
+            ;;
+    *)      echo 'no spiece parameter'
+            echo 1
+            exit 1
+            ;;
+esac
+
+case ${STRAND} in
+    0)   STRAND='NONE'
+            ;;
+    1)   STRAND='FIRST_READ_TRANSCRIPTION_STRAND'
+            ;;
+    2)   STRAND='SECOND_READ_TRANSCRIPTION_STRAND'
+            ;;
+    *)      echo 'no strand parameter'
+            echo 1
+            exit 1
+            ;;
+esac
+
+case ${SORTED} in
+    0)   SORTED='false'
+            ;;
+    1)   SORTED='true'
+            ;;
+    *)      echo 'no sorted parameter'
+            echo 1
+            exit 1
+            ;;
+esac
+
+if [ -f  ${BAMFILE} ]; then
+    echo 'proceed to next step'
+else
+    echo 'no file exists'
+    echo 1
+    exit 1
+fi
+# http://stackoverflow.com/questions/28674987/unique-linux-filename-sortable-by-time
+RANDOM_FILE_NAME=`date '+%m-%d-%H-%M-%s'`-`uuidgen -t`
+samtools view -H ${BAMFILE} > ${RANDOM_FILE_NAME}
+cut -s -f 1,4,5,7,9  ${RIBO_INTERVAL_LIST} >> ${RANDOM_FILE_NAME}
+#java -Xmx2g -jar ${JAR} CollectRnaSeqMetrics REF_FLAT=${REFFLAT} RIBOSOMAL_INTERVALS=${RIBO_INTERVAL_LIST} STRAND_SPECIFICITY=NONE CHART_OUTPUT= NM_CONTROL_3.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS INPUT=${BAM} OUTPUT= NM_CONTROL_3.out  ASSUME_SORTED=true
+#BAM="TG_CONTROL_1/accepted_hits.bam"
+java -Xmx2g -jar ${JAR} CollectRnaSeqMetrics REF_FLAT=${REFFLAT} RIBOSOMAL_INTERVALS=${RANDOM_FILE_NAME} \
+                        STRAND_SPECIFICITY=${STRAND} CHART_OUTPUT=null METRIC_ACCUMULATION_LEVEL=ALL_READS \
+                        INPUT=${BAMFILE} OUTPUT=${OUTPUT}  ASSUME_SORTED=true
+
+if $? == 0; then
+    rm ${RANDOM_FILE_NAME}
+    echo 0
+    exit 0
+else 
+   rm ${RANDOM_FILE_NAME}
+   echo 1
+   exit 1
+fi
+exit 23
+read_GC.py -i ${BAMFILE} -o ${OUTPUT}
+geneBody_coverage.py
+read_distribution.py
+junction_annotation.py
+infer_experiment.py
+RPKM_saturation.py
