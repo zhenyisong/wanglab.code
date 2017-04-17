@@ -1,0 +1,360 @@
+#!/bin/bash
+#PBS -k o
+#PBS -l nodes=1:ppn=2:dc,vmem=16gb,walltime=720:00:00 
+#PBS -M zhenyisong@gmail.com 
+#PBS -m abe
+#PBS -N aspera
+#PBS -j oe
+#PBS -e /home/zhenyisong/data/cardiodata/encode/mouse_embryonic_heart
+#PBS -o /home/zhenyisong/data/cardiodata/encode/mouse_embryonic_heart
+
+#----
+#/home/zhenyisong/.aspera/connect/bin/ascp -T -l 200M -k 3 -i /home/zhenyisong/.aspera/connect/etc/asperaweb_id_dsa.openssh \
+#  --host=ftp-private.ncbi.nlm.nih.gov --user=anonftp --mode=recv \
+#  -d /sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834258/ ./
+#----
+
+#---
+# GEO key words
+# (Barbara Wold, Caltech AND heart) AND gds_sra[filter]
+# (Bing Ren AND ChIP-seq AND heart) AND gds_sra[filter] 
+#---
+
+source /etc/profile
+
+cd /home/zhenyisong/data/cardiodata/encode/mouse_embryonic_heart
+
+ascp='/home/zhenyisong/.aspera/connect/bin/ascp'
+openssh='/home/zhenyisong/.aspera/connect/etc/asperaweb_id_dsa.openssh'
+ftpadd='ftp-private.ncbi.nlm.nih.gov'
+
+##d0='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834257'
+##d1='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833842'
+##d2='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833841'
+##d3='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833154'
+##d4='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833153'
+##d5='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833024'
+##d6='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833023'
+##d7='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603223'
+##d8='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603222'
+##d9='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603212'
+##d10='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603211'
+##d11='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603149'
+##d12='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603148'
+##d13='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603128'
+##d14='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603127'
+##d15='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603071'
+##d16='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603070'
+##d17='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603012'
+##d18='/sra/sra-instant/reads/ByExp/sra/SRX/SRX160/SRX1603011'
+##d19='/sra/sra-instant/reads/ByExp/sra/SRX/SRX224/SRX2244893'
+##d20='/sra/sra-instant/reads/ByExp/sra/SRX/SRX224/SRX2244892'
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d0 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d1 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d2 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d3 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d4 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d5 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d6 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d7 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d8 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d9 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d10 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d11 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d12 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d13 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d14 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d15 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d16 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d17 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d18 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d19 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d20 ./
+
+
+## ChIP-seq data
+## (Bing Ren AND ChIP-seq AND heart) AND gds_sra[filter] 
+##d21='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834444'
+##d22='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834443'
+##d23='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834328'
+##d24='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834327'
+##d25='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834286'
+##d26='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834285'
+##d27='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834274'
+##d28='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834273'
+##d29='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834218'
+##d30='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834217'
+##d31='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834206'
+##d32='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834164'
+##d33='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834163'
+##d34='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834166'
+##d35='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834165'
+##d36='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834154'
+##d37='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834153'
+##d38='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834085'
+##d39='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834084'
+##d40='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834027'
+##d41='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834026'
+##d42='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833996'
+##d43='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833995'
+##d44='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833958'
+##d45='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833957'
+##d46='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833952'
+##d47='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833951'
+##d48='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833919'
+##d49='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833918'
+##d50='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833781'
+##d51='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833780'
+##d52='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833656'
+##d53='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833655'
+##d54='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833642'
+##d55='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833616'
+##d56='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833615'
+##d57='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833612'
+##d58='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833611'
+##d59='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833568'
+##d60='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833567'
+##d61='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833558'
+##d62='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833512'
+##d63='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833511'
+##d64='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833482'
+##d65='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833481'
+##d66='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833415'
+##d67='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833409'
+##d68='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833408'
+##d69='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833399'
+##d70='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833398'
+##d71='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833392'
+##d72='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833383'
+##d73='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833382'
+##d74='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833355'
+##d75='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833354'
+##d76='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833332'
+##d77='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833331'
+##d78='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833330'
+##d79='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833329'
+##d80='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833166'
+##d81='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833165'
+##d82='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832960'
+##d83='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832959'
+##d84='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832902'
+##d85='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832901'
+##d86='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832870'
+##d87='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834460'
+##d88='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834459'
+##d89='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834268'
+##d90='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834267'
+##d91='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834083'
+##d92='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834082'
+##d93='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833950'
+##d94='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833949'
+##d95='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833748'
+##d96='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833747'
+##d97='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833516'
+##d98='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833515'
+##d99='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833449'
+##d100='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833448'
+##d101='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832964'
+##d102='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832963'
+##d103='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832962'
+##d104='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832961'
+##d105='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832884'
+##d106='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832883'
+##d107='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834456'
+##d108='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834455'
+##d109='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834450'
+##d110='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834449'
+##d111='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834336'
+##d112='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834335'
+##d113='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834205'
+##d114='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834060'
+##d115='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834059'
+##d116='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833884'
+##d117='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833883'
+##d118='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833820'
+##d119='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833819'
+##d120='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833755'
+##d121='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833754'
+##d122='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833641'
+##d123='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833557'
+##d124='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833414'
+##d125='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833403'
+##d126='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833402'
+##d127='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833393'
+##d128='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833292'
+##d129='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833291'
+##d130='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833128'
+##d131='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833127'
+##d132='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833126'
+##d133='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833125'
+##d134='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833104'
+##d135='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833103'
+##d136='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832972'
+##d137='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832971'
+##d138='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832930'
+##d139='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832929'
+##d140='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832886'
+##d141='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832885'
+##d142='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832860'
+##d143='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832859'
+##d144='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832869'
+##d145='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832752'
+##d146='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1832751'
+##
+##
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d21 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d22 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d23 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d24 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d25 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d26 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d27 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d28 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d29 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d30 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d31 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d32 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d33 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d34 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d35 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d36 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d37 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d38 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d39 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d40 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d41 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d42 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d43 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d44 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d45 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d46 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d47 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d48 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d49 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d50 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d51 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d52 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d53 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d54 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d55 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d56 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d57 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d58 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d59 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d60 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d61 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d62 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d63 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d64 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d65 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d66 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d67 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d68 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d69 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d70 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d71 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d72 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d73 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d74 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d75 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d76 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d77 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d78 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d79 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d80 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d81 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d82 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d83 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d84 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d85 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d86 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d87 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d88 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d89 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d90 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d91 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d92 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d93 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d94 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d95 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d96 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d97 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d98 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d99 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d100 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d101 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d102 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d103 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d104 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d105 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d106 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d107 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d108 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d109 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d110 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d111 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d112 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d113 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d114 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d115 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d116 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d117 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d118 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d119 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d120 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d121 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d122 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d123 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d124 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d125 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d126 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d127 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d128 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d129 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d130 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d131 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d132 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d133 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d134 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d135 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d136 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d137 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d138 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d139 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d140 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d141 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d142 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d143 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d144 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d145 ./
+##$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d146 ./
+
+
+## Mouse miRNA data
+## query key words
+## microRNA-seq from heart AND gds_sra[filter]
+d147='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834258'
+d148='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834257'
+d149='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834250'
+d150='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834249'
+d151='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834208'
+d152='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1834207'
+d153='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833842'
+d154='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833841'
+d155='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833302'
+d156='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833301'
+d157='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833154'
+d158='/sra/sra-instant/reads/ByExp/sra/SRX/SRX183/SRX1833153'
+
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d147 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d148 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d149 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d150 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d151 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d152 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d153 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d154 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d155 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d156 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d157 ./
+$ascp -T -l 200M -k 3 -i $openssh --host=$ftpadd --user=anonftp --mode=recv -d $d158 ./

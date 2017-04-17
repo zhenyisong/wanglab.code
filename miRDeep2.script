@@ -1,0 +1,111 @@
+#!/bin/bash
+#PBS -k o
+#PBS -l nodes=1:ppn=8:dc,vmem=32gb,walltime=48:00:00 
+#PBS -M zhenyisong@gmail.com 
+#PBS -m abe
+#PBS -N miRNA
+#PBS -j oe
+#PBS -e /home/zhenyisong/data/cardiodata/SRP056382/miRDeep2
+#PBS -o /home/zhenyisong/data/cardiodata/SRP056382/miRDeep2
+## qsub /home/zhenyisong/data/wanglilab/wangcode/miRDeep2.script 
+
+cd /home/zhenyisong/data/cardiodata/SRP056382/miRDeep2
+miRNA='/home/zhenyisong/data/genome/miRNA'
+genome='/home/zhenyisong/data/bringback/igenome/Homo_sapiens/NCBI/GRCh38/Sequence/BowtieIndex/genome.fa'
+
+##---
+## QC check
+##---
+##rm -rf QC_result_fastqc
+##mkdir QC_result_fastqc
+##fastqc -f fastq -o QC_result_fastqc SRR1922516.trimed.fastq
+##
+#### this version from NCBI human genome assemble has strange characters
+#### I have to remove them and re-build the bowtie index
+####--
+##sanity_check_genome.pl $genome
+##remove_white_space_in_id.pl $genome > genome.sanity.fa
+##sed -e '/^[^>]/s/[^ATGCatgc]/N/g' genome.sanity.fa > genome.fa
+##sanity_check_genome.pl genome.fa
+##rm genome.sanity.fa
+##rm genome*.ebwt
+##bowtie-build -q genome.fa genome
+##
+##remove_white_space_in_id.pl $miRNA/hairpin_hsa.fa > hairpin.fa 
+##sanity_check_mature_ref.pl hairpin.fa
+##remove_white_space_in_id.pl $miRNA/mature_hsa.fa  > mature.fa
+##sanity_check_mature_ref.pl mature.fa
+##remove_white_space_in_id.pl $miRNA/hairpin_mmu.fa > hairpin_mmu.fa
+##sanity_check_mature_ref.pl hairpin_mmu.fa
+##sed -e '/^[^>]/s/[^ATGCatgc]/N/g' hairpin_mmu.fa > hairpin_mmu.temp.fa
+##sanity_check_mature_ref.pl hairpin_mmu.temp.fa
+##mv hairpin_mmu.temp.fa hairpin_mmu.fa
+##sanity_check_mature_ref.pl hairpin_mmu.fa
+##remove_white_space_in_id.pl $miRNA/mature_mmu.fa  > mature_mmu.fa
+##sanity_check_mature_ref.pl mature_mmu.fa
+##sed -e '/^[^>]/s/[^ATGCatgc]/N/g' mature_mmu.fa > mature_mmu.temp.fa
+##sanity_check_mature_ref.pl mature_mmu.temp.fa
+##mv mature_mmu.temp.fa mature_mmu.fa
+##remove_white_space_in_id.pl $miRNA/mature_Hominidae.fa  > mature_Hominidae.fa
+##sed -e '/^[^>]/s/[^ATGCatgc]/N/g' mature_Hominidae.fa > mature_Hominidae.temp.fa
+##sanity_check_mature_ref.pl mature_Hominidae.temp.fa
+##mv mature_Hominidae.temp.fa mature_Hominidae.fa
+##
+## GSE67074
+
+cd /home/zhenyisong/data/cardiodata/SRP056382
+files=(*.fastq)
+len=${#files[@]}
+cd /home/zhenyisong/data/cardiodata/SRP056382/miRDeep2/adaptor
+fastq='/home/zhenyisong/data/cardiodata/SRP056382'
+hsa='/home/zhenyisong/data/genome/miRNA/hsa.gff3'
+miRNAadaptor='TGGAATTCTCGGGTGCCAAGG'
+cutadapt='/opt/rocks/bin/cutadapt'
+
+
+for (( i=0; i<${len}; i++ ));
+do
+    filename=${files[$i]}
+    base=${filename%.fastq}
+    $cutadapt -e 0.15 -O 7 -m 15 -a $miRNAadaptor $fastq/$base.fastq -o $base.cutadapt.fastq
+done
+
+files=(*.fastq)
+len=${#files[@]}
+rm config.txt
+for (( i=0; i<${len}; i++ ));
+do
+    filename=${files[$i]}
+    base=${filename%.cutadapt.fastq}
+    if ((i >= 10));then
+        echo -e "$filename\ts$i\t$base" >> config.txt
+    else
+        echo -e "$filename\tsd$i\t$base" >> config.txt
+    fi
+done
+
+mapper.pl config.txt -d -e -h -j -n -p ../genome -l 18 -m -s reads.collapsed.fasta -t reads_collapsed_vs_genome.arf -v
+##---
+## output from the above step
+## parsing fastq to fasta format                                      
+## discarding sequences with non-canonical letters                    
+## discarding short reads                                             
+## collapsing reads                                                   
+## mapping reads to genome index                                      
+## trimming unmapped nts in the 3' ends                               
+## Log file for this run is in mapper_logs and called mapper.log_24165
+## Mapping statistics                                                 
+##                                                                    
+## #desc   total   mapped  unmapped        %mapped %unmapped          
+## total: 26586515 306101  26280414        0.012   0.988              
+## seq: 26586515   306101  26280414        0.012   0.988              
+##---
+
+#---
+# raw data for miRNA were downloaded from miRNA database, public
+#---
+#quantifier.pl -p hairpin.fa -m mature.fa -r SRR1922516.collapsed.fasta -t Human 
+
+miRDeep2.pl reads.collapsed.fasta ../genome.fa reads_collapsed_vs_genome.arf ../mature.fa ../mature_Hominidae.fa ../hairpin.fa -P -t hsa 2>report.log
+
+rm -rf pdfs* mirdeep* mapper_lo* dir_mapper* expression* miRNAs_expressed_all_samples*

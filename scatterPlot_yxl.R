@@ -1,8 +1,10 @@
 library(outliers)
 "
 raw data is from Yxl's excel file
-the file name is changed to 08-02YXL
-the following data was manually input
+the file was sent by Yuan and recieved.
+the prefix of her sent file is 8-4*
+the following data was manually curated
+from her Excel file.
 "
 ctrl.1 <- list(actin = c(19, 20, 15),thoc5 = c(21, 19, 22))
 ctrl.2 <- list(actin = c(14, 17, 19),thoc5 = c(12, 17, 16))

@@ -29,6 +29,9 @@ library(RColorBrewer)
 # @parent
 #    /home/zhenyisong/data/wanglilab/projects/2016-06-07
 #        rsubread_limma.R
+#    see the contrast made in the above code
+#    contrast.matrix  = makeContrasts(Ino80_1 - CM_NT,Rif1OE - GFPOE, Ino80_3 - CM_NT,
+#                                     Rif1B - CM_NT, Rif1C - CM_NT, levels = design)
 
 #--------------------------------------------------------------------------
 #  the following code is to extract gene count information from
@@ -58,7 +61,7 @@ outputs.files     = paste0(output.path,reads.files$V1,'.sam')
 
 # get gene's counts
 gene         <-  featureCounts( outputs.files, useMetaFeatures = TRUE, 
-                        annot.inbuilt = "hg19", allowMultiOverlap = TRUE)
+                                annot.inbuilt = "hg19", allowMultiOverlap = TRUE)
 gene.counts  <- gene$counts
 
 colnames(gene.counts)
@@ -67,7 +70,6 @@ colnames(gene.counts) <- c( 'CM_GFPOE_1','CM_Ino80_1_1','CM_Ino80_1_2',
                             'CM_Ino80_3_1','CM_Ino80_3_2','CM_NT_1',
                             'CM_NT_2','CM_Rif1B_1','CM_Rif1C_1',
                             'CM_Rif1C_2','CM_Rif1OE_1','CM_Rif1OE_2');
-gene.counts   <- gene.counts[,c(2:7)]
 
 keytypes(org.Hs.eg.db)
 
@@ -76,7 +78,7 @@ GeneInfo <- select( org.Hs.eg.db, keys= as.character(gene.ids),
                    keytype="ENTREZID", columns = columns);
 m        <- match(gene$annotation$GeneID, GeneInfo$ENTREZID);
 Ann      <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
-                  GeneInfo[m, c("SYMBOL", "OMIM", "GENENAME")]);
+                   GeneInfo[m, c("SYMBOL", "OMIM", "GENENAME")]);
 
 Ann$Chr  <-  unlist( lapply(strsplit(Ann$Chr, ";"), 
                     function(x) paste(unique(x), collapse = "|")))
@@ -87,16 +89,17 @@ gene.exprs      <- calcNormFactors(gene.exprs)
 dge.tmm         <- t(t(gene.exprs$counts) * gene.exprs$samples$norm.factors)
 dge.tmm.counts  <- apply(dge.tmm,2, as.integer)
 
-group           <- factor(c( 'Ino80_1','Ino80_1','Ino80_3',
-                             'Ino80_3','CM_NT','CM_NT'));
+group           <- factor(c( 'GFP_oe','Ino80_1','Ino80_1','Ino80_3',
+                             'Ino80_3','CM_NT','CM_NT','Rif1B',
+                             'Rif1C','Rif1C','Rif1OE','Rif1OE'));
 sample.info     <- data.frame(treat = group)
 dds             <- DESeqDataSetFromMatrix( countData = dge.tmm.counts,
                                            colData   = sample.info,
                                            design    = ~ treat)
 vsd                     <- varianceStabilizingTransformation(dds, blind = FALSE);
-vsd.expr                <- assay(vsd)
-rownames(vsd.expr)      <- GeneInfo[m,'SYMBOL']
-colnames(vsd.expr)      <- colnames(gene.counts) 
+vsd.expr.wholeGroup                 <- assay(vsd)
+rownames(vsd.expr.wholeGroup )      <- GeneInfo[m,'SYMBOL']
+colnames(vsd.expr.wholeGroup )      <- colnames(gene.counts) 
 
 setwd('/wa/zhenyisong/wanglilab/wangdata') 
 mature.im.markers <- 'cardio_manual_maturation_markers.xlsx'
@@ -141,20 +144,34 @@ heatmap.result      <- heatmap.2(fibro.heatmap, col = my_palette, scale  = 'row'
 "
 extract fetal.genes from maturation.Rdata
 "
-fetal <- intersect(rownames(vsd.expr),toupper(fetal.genes))
-fetal.heatmap       <- vsd.expr[fetal,] 
-heatmap.result      <- heatmap.2(fetal.heatmap, col = my_palette, scale  = 'row', 
-						       Rowv = TRUE,Colv = FALSE, density.info = 'none',
-                               key  = TRUE, trace='none', symm = F,symkey = F,symbreaks = T,
-						       cexRow  = 1, cexCol = 1,srtCol = 30,
-                               distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
-						       hclustfun  = function(d) hclust(d, method = 'complete'),
-						       dendrogram = 'row',margins = c(12,6),labRow = fetal,
-						      ); 
+## Ino80
+## vsd.expr <- vsd.expr.wholeGroup[,c(2:7)]
+## Rif1OE
+## vsd.expr <- vsd.expr.wholeGroup[,c(1,11,12)]
+## Rif1B
+## vsd.expr <- vsd.expr.wholeGroup[,c(6,7,8)]
+## Rif1C
+## vsd.expr <- vsd.expr.wholeGroup[,c(6,7,9,10)]
 
+## load('tissue-specific.Rdata')
+##  see code tissue-specific.R
+## fetal.genes <- cardiac.gene.names
+#  mature.genes <- fibroblast.gene.names
+fetal <- intersect(rownames(vsd.expr),toupper(fetal.genes))  
+## discarded, variation is 0
+##fetal.heatmap       <- vsd.expr[fetal,] 
+##heatmap.result      <- heatmap.2(fetal.heatmap, col = my_palette, scale  = 'row', 
+##						       Rowv = TRUE,Colv = FALSE, density.info = 'none',
+##                               key  = TRUE, trace='none', symm = F,symkey = F,symbreaks = T,
+##						       cexRow  = 1, cexCol = 1,srtCol = 30,
+##                               distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
+##						       hclustfun  = function(d) hclust(d, method = 'complete'),
+##						       dendrogram = 'row',margins = c(12,6),labRow = fetal,
+##						      ); 
+##
 mature <- intersect(rownames(vsd.expr),toupper(mature.genes))
 mature.heatmap       <- vsd.expr[mature,]
-ind <- apply(mature.heatmap, 1, sd) == 0
+ind    <- apply(mature.heatmap, 1, sd) == 0
 subset <- mature.heatmap[!ind,]
 heatmap.result      <- heatmap.2( subset, col = my_palette, scale  = 'row', 
 						          Rowv = TRUE,Colv = FALSE, density.info = 'none',

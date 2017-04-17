@@ -1,5 +1,8 @@
 gtf2bed='/home/zhenyisong/data/software/bin/bedops_linux_x86_64-v2.4.20.v2/bin/convert2bed'
+merge_gtf='/home/zhenyisong/data/cardiodata/SRP082390/hisat2/stringtie_merged.gtf'
 ## convert2bed --input=fmt [--output=fmt] [options] < input > output
-$gtf2bed --input=gtf < merged.gtf > temp.bed
+$gtf2bed --input=gtf < $merge_gtf > temp.bed
 PredcircRNA='/data/software/bin/PredcircRNA-master/PredcircRNA.py'
 python $PredcircRNA --inputfile=temp.bed --outputfile=test_bed_out 
+cd /bioware/circRNA
+python PredcircRNA.py --inputfile=temp.bed --outputfile=test_bed_out 

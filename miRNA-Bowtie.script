@@ -5,10 +5,10 @@
 #PBS -m abe
 #PBS -N miRNA
 #PBS -j oe
-#PBS -e /home/zhenyisong/data/cardiodata/SRP057170
-#PBS -o /home/zhenyisong/data/cardiodata/SRP057170
+#PBS -e /home/zhenyisong/data/cardiodata/SRP056382
+#PBS -o /home/zhenyisong/data/cardiodata/SRP056382
 
-
+## qsub /home/zhenyisong/data/wanglilab/wangcode/miRNA-Bowtie.script
 ## http://seqanswers.com/forums/showthread.php?t=3775
 ## http://stackoverflow.com/questions/947897/block-comments-in-a-shell-script
 
@@ -39,18 +39,80 @@
 #bowtie mature_hsa -p 8 -n 1 -l 8 -a --best --strata -q --sam SRR039611.fastq >SRR039611.sam
 #samtools view -bS SRR1973857.sam | samtools sort -n -@ 8 - SRR1973857
 
+
+## you need to define the genome seqeunce 
+##   human  /home/zhenyisong/data/bringback/igenome/Homo_sapiens/NCBI/GRCh38/Sequence/BowtieIndex/genome.fa
+##   mouse
+## bowtie1 index
+##   human  /home/zhenyisong/data/bringback/igenome/Homo_sapiens/NCBI/GRCh38/Sequence/BowtieIndex
+##   mouse
+
+##---
+## miRBase dataset
+##
+## /home/zhenyisong/data/genome/miRNA
+##---
+
+##
+## used commond
+##  $bowtie genome -p 10 -a --best --strata -l 10 -m 1 --chunkmbs 128 -q --sam $base.fastq > $base.sam
 source /etc/profile
-cd /home/zhenyisong/data/cardiodata/SRP057170
-bowtie='/usr/local/bin/bowtie'
+cd /home/zhenyisong/data/cardiodata/SRP056382
+fastq='/home/zhenyisong/data/cardiodata/SRP056382'
+hsa='/home/zhenyisong/data/genome/miRNA/hsa.gff3'
+miRNAadaptor='TGGAATTCTCGGGTGCCAAGG'
 files=(*.fastq)
 len=${#files[@]}
+
+
+bwa='/usr/local/bin/bwa'
+cutadapt='/opt/rocks/bin/cutadapt'
+#ln -s /home/zhenyisong/data/bringback/igenome/Homo_sapiens/NCBI/GRCh38/Sequence/BowtieIndex/genome.fa ./
+
+bwa_genome='/home/zhenyisong/data/bringback/igenome/Homo_sapiens/NCBI/GRCh38/Sequence/BWAIndex/genome.fa'
+cd /home/zhenyisong/data/cardiodata/SRP056382
+##rm -rf bwa
+##mkdir bwa
+##cd bwa
+####ln -s $bwa_genome ./
+####$bwa index -a bwtsw genome.fa
+##for (( i=0; i<${len}; i++ ));
+##do
+##    filename=${files[$i]}
+##    base=${filename%.fastq}
+##    #$cutadapt -e 0.15 -O 7 -m 15 -a $miRNAadaptor $fastq/$base.fastq -o $base.cutadapt.fastq
+##    $bwa aln -t 8 -n 1 -o 0 -e 0 -l 8 -k 0 genome.fa $base.cutadapt.fastq > $base.sai
+##    $bwa samse genome.fa $base.sai $fastq/$base.fastq | samtools sort -n -@ 8 - $base
+##    python -m HTSeq.scripts.count -s no --stranded=no -r name -f bam -t miRNA -m union -i Name -q $base.bam $hsa > $base.txt
+##    #$bwa samse genome.fa SRR1922516.sai SRR1922516.fastq | samtools sort -n -@ 8 - SRR1922516
+##    #python -m HTSeq.scripts.count -s no --stranded=no -r name -f bam -t miRNA_primary_transcript -m union -i Name $base.bam $hsa > $base.txt
+##    #python -m HTSeq.scripts.count -s no --stranded=no -r name -f bam -t miRNA -m union -i Name SRR1922516.bam $hsa > SRR1922516.txt
+##done
+##
+
+bowtie='/usr/local/bin/bowtie'
+cd /home/zhenyisong/data/cardiodata/SRP056382/bowtie/adaptor
+ln -s /home/zhenyisong/data/bringback/igenome/Homo_sapiens/NCBI/GRCh38/Sequence/BowtieIndex/* ./
+
 for (( i=0; i<${len}; i++ ));
 do
     filename=${files[$i]}
     base=${filename%.fastq}
-    bowtie genome -p 10 -a --best --strata -l 10 -m 1 --chunkmbs 128 -q --sam $base.fastq > $base.sam
+    $cutadapt -e 0.15 -O 7 -m 15 -a $miRNAadaptor $fastq/$base.fastq -o $base.cutadapt.fastq
+    $bowtie genome -p 4 -n 1 -l 8 -a --best --strata --sam $base.cutadapt.fastq > $base.sam
     samtools view -bS $base.sam | samtools sort -n -@ 8 - $base
-    python -m HTSeq.scripts.count -s no -r name -f bam -t miRNA_primary_transcript -m union -i Name S$base.bam mmu.gff3 > $base.txt
+    python -m HTSeq.scripts.count -s no --stranded=no -r name -f bam -t miRNA -m union -i Name -q $base.bam $hsa > $base.txt
 done
+##
+##
+## $bwa aln -t 10 -n 1 -o 0 -e 0 -k 1 genome.fa SRR1922516.cutadapt.fastq > SRR1922516.sai
+## $bwa samse genome.fa SRR1922516.sai SRR1922516.cutadapt.fastq | samtools sort -n -@ 8 - SRR1922516
+## python -m HTSeq.scripts.count -s no --stranded=no -r name -f bam -t miRNA -m union -i Name -q SRR1922516.bam $hsa > SRR1922516.bwa.txt
+##
 
-
+##$bowtie genome -p 10 -n 1 -l 10 -a --best --strata --sam SRR1922516.cutadapt.fastq > SRR1922516.trimed.sam
+##samtools view -bS SRR1922516.trimed.sam| samtools sort -n -@ 8 - SRR1922516.trimed
+##python -m HTSeq.scripts.count -s no --stranded=no -r name -f bam -t miRNA -m union -i Name SRR1922516.trimed.bam $hsa > SRR1922516.trimed.txt
+##1. BWA 0.7.4: bwa aln -n 1 -o 0 -e 0 -k 1 -t 4
+##2. BWA 0.7.4 (0 mismatch in seed): bwa aln -n 1 -o 0 -e 0 -l 8 -k 0 -t 4
+##3. Bowtie 0.12.9: bowtie -

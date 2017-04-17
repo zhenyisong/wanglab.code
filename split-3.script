@@ -5,10 +5,10 @@
 #PBS -m abe
 #PBS -N Fastq-dump 
 #PBS -j oe
-#PBS -e /home/zhenyisong/data/cardiodata/SRP012040
-#PBS -o /home/zhenyisong/data/cardiodata/SRP012040
+#PBS -e /home/zhenyisong/data/cardiodata/SRP082391
+#PBS -o /home/zhenyisong/data/cardiodata/SRP082391
 
-cd /home/zhenyisong/data/cardiodata/SRP012040
+cd /home/zhenyisong/data/cardiodata/SRP082391
 files='ls *.sra'
 fastdump='/data/software/bin/sratoolkit.2.4.5-2-centos_linux64/bin/fastq-dump.2.4.5'
 for file in $files;do

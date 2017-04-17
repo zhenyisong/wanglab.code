@@ -21,6 +21,46 @@
 # @reference
 # https://www.biostars.org/p/86563/
 
+
+##---
+## strandness check with 
+##    http://rseqc.sourceforge.net/
+##    the folowing data was downloaded from above site
+##    cooper.data
+##    GSE49906
+##    SRP029464
+##    PMID: 24752171
+##    Title:
+##    Alternative splicing regulates vesicular trafficking genes in 
+##    cardiomyocytes during postnatal heart development. 
+##    Nat Commun 2014 Apr 22;5:3603. 
+##    mm10_bed='/home/zhenyisong/data/genome/mm10_RefSeq.bed'
+##    cd /home/zhenyisong/data/cardiodata/SRP029464/results/
+##    infer_experiment.py -i SRR964790_1.fastq.bam -r $mm10_bed
+##    output:
+##    This is PairEnd Data
+##    Fraction of reads explained by "1++,1--,2+-,2-+": 0.9405
+##    Fraction of reads explained by "1+-,1-+,2++,2--": 0.0243
+##    Fraction of reads explained by other combinations: 0.0352
+##    dataset SRP029464 use the parameter: FR
+##    perrelo.data
+##    cd /home/zhenyisong/data/cardiodata/SRP045149/results/
+##    infer_experiment.py -i SRR1533761.fastq.sam  -r $mm10_bed
+##    output
+##    This is SingleEnd Data
+##    Fraction of reads explained by "++,--": 0.4747
+##    Fraction of reads explained by "+-,-+": 0.4986
+##    Fraction of reads explained by other combinations: 0.0267
+##    naked eye check
+##        try to extract paired reads from raw data
+##        sed 's/@//g;s/ /_/g' SRR4044044_1.fastq  | awk '{ if(NR%4 == 1) print ">"$0;if (NR%4 == 2) print $0; }' | head
+##   and use UCSC Genome Browser to view the direction.
+
+##
+# http://stackoverflow.com/questions/9917049/inserting-an-image-to-ggplot2
+# layout in the final output
+##
+
 library(gplots)
 library(xlsx)
 library(Rsubread)
@@ -28,14 +68,12 @@ library(edgeR)
 library(limma)
 library(org.Mm.eg.db)
 library(DESeq2)
-library(gplots)
 library(genefilter)
 library(RColorBrewer)
 library(ggplot2)
 library(gridExtra)
 library(affy)
 library(annotate)
-library(limma)
 library(org.Hs.eg.db)
 library(mgu74a.db)
 library(RFLPtools)
@@ -43,136 +81,155 @@ library(VennDiagram)
 library(DiagrammeR)
 library(magrittr)
 library(cowplot)
-library(VennDiagram)
 library(clusterProfiler)
+library(png)
+library(grid)
+library(GGally)
+library(reshape)
 
 
 setwd("C:\\Users\\Yisong\\Desktop")
 #setwd("/home/zhenyisong/data/cardiodata")
-load("maturation.Rdata")
+load("maturation.update.Rdata")
 #load("GSE1479.Rdata")
 #save.image("maturation.Rdata")
 
-"
-affy GSE75
-"
+##"
+##affy GSE75
+##"
+##
+##setwd('/home/zhenyisong/data/cardiodata/GSE75')
+##setwd("E:\\FuWai\\PaperPublished\\CardiacAgeing\\GSE75_RAW")
+##raw.data       <- ReadAffy();
+##rma.data       <- rma(raw.data);
+##exprs.data     <- exprs(rma.data)
 
-#setwd('/home/zhenyisong/data/cardiodata/GSE75')
-setwd("E:\\FuWai\\PaperPublished\\CardiacAgeing\\GSE75_RAW")
-raw.data       <- ReadAffy();
-rma.data       <- rma(raw.data);
-exprs.data     <- exprs(rma.data)
+
 "
 define the path where the reference genome sequence is deposited
 "
 genome_ref.path     <- "/home/zhenyisong/data/genome/Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome.fa"
 gtf_annotation.file <- "/home/zhenyisong/data/genome/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf"
 
-#"
-#this is the targets file which indicate the fastq file path and other experiment
-#inforamtion regarding the sequence
-#ls *.fastq>targets.txt
-#"
-#targets.file      <- '/home/zhenyisong/data/cardiodata/SRP051406/targets.txt'
-#reads.files       <- read.table(targets.file,header = F)
-#
-#
-#"
-#output path, where the resuls are saved
-#"
-#reads.path        <- '/home/zhenyisong/data/cardiodata/SRP051406/'
-#output.path       <- '/home/zhenyisong/data/cardiodata/SRP051406/results/'
-#
-#reads.files.names <- reads.files$V1
-#read.path.1       <- reads.files.names[grep("_1",reads.files.names)]
-#read.path.2       <- reads.files.names[grep("_2",reads.files.names)]
-#
-#"
-#generate the path vectors
-#"
-#reads.paths.1       <- paste0(reads.path,read.path.1)
-#reads.paths.2       <- paste0(reads.path,read.path.2)
-#outputs.files       <- paste0(output.path,read.path.1,'.bam')
-#
-#"
-#the base index name
-#"
-#base.string       = 'mm10_index'
-#
-#"
-#use the Rsubread command to generate index file
-#this index file will be generated and saved at getwd()
-#you do not need to generate the script
-#"
-#setwd("/home/zhenyisong/data/cardiodata/SRP051406")
-##buildindex( basename = base.string, reference = genome_ref.path )
-#
-#"
-#this is the function which is called to align the genome
-#sequence
-#"
-#
-#align( index         = base.string, 
-#       readfile1     = reads.paths.1, 
-#       readfile2     = reads.paths.2, 
-#       input_format  = "FASTQ", 
-#       type          = 'rna',
-#       output_file   = outputs.files, 
-#       output_format = "BAM", 
-#       nthreads      = 8, 
-#       indels        = 1,
-#       maxMismatches = 3,
-#       phredOffset   = 33,
-#       unique        = T )
-#
-#
-## get gene's counts
-#boyer.gene       <- featureCounts( outputs.files, useMetaFeatures = TRUE, 
-#                                   annot.inbuilt = "mm10", allowMultiOverlap = TRUE)
-#
-#"
-#read GSE59970/SRP045149
-#"
-#setwd("/home/zhenyisong/data/cardiodata/SRP045149")
-## ln -s /home/zhenyisong/data/cardiodata/SRP051406/mm10_index* ./
-#targets.file      <- '/home/zhenyisong/data/cardiodata/SRP045149/targets.txt'
-#reads.files       <- read.table(targets.file,header = F)
-#
-#
-#"
-#output path, where the resuls are saved
-#"
-#reads.path        <- '/home/zhenyisong/data/cardiodata/SRP045149/'
-#output.path       <- '/home/zhenyisong/data/cardiodata/SRP045149/results/'
-#
-#reads.files.names <- reads.files$V1
-#reads.paths       <- paste0(reads.path,reads.files$V1)
-#outputs.files     <- paste0(output.path,reads.files$V1,'.sam')
-#
-#
-#
-#base.string       <- 'mm10_index'
-#
-#align( index         = base.string, 
-#       readfile1     = reads.paths, 
-#       input_format  = "FASTQ", 
-#       type          = 'rna',
-#       output_file   = outputs.files, 
-#       output_format = "SAM", 
-#       nthreads      = 8, 
-#       indels        = 1,
-#       maxMismatches = 3,
-#       phredOffset   = 33,
-#       unique        = T )
-#
-#
-#perrelo.gene <- featureCounts( outputs.files, useMetaFeatures = TRUE, 
-#                               annot.inbuilt = "mm10", allowMultiOverlap = TRUE)
-#
-#
-#
+"
+this is the targets file which indicate the fastq file path and other experiment
+inforamtion regarding the sequence
+ls *.fastq>targets.txt
+"
+targets.file      <- '/home/zhenyisong/data/cardiodata/SRP051406/targets.txt'
+reads.files       <- read.table(targets.file,header = F)
+
+
+"
+output path, where the resuls are saved
+"
+reads.path        <- '/home/zhenyisong/data/cardiodata/SRP051406/'
+output.path       <- '/home/zhenyisong/data/cardiodata/SRP051406/results/'
+
+reads.files.names <- reads.files$V1
+read.path.1       <- reads.files.names[grep("_1",reads.files.names)]
+read.path.2       <- reads.files.names[grep("_2",reads.files.names)]
+
+"
+generate the path vectors
+"
+reads.paths.1     <- paste0(reads.path,read.path.1)
+reads.paths.2     <- paste0(reads.path,read.path.2)
+outputs.files     <- paste0(output.path,read.path.1,'.bam')
+
+"
+the base index name
+"
+base.string       = 'mm10_index'
+
+"
+use the Rsubread command to generate index file
+this index file will be generated and saved at getwd()
+you do not need to generate the script
+"
+setwd("/home/zhenyisong/data/cardiodata/SRP051406")
+buildindex( basename = base.string, reference = genome_ref.path )
+
+"
+this is the function which is called to align the genome
+sequence
+"
+
+align( index          = base.string, 
+       readfile1      = reads.paths.1, 
+       readfile2      = reads.paths.2, 
+       input_format   = "FASTQ", 
+       type           = 'rna',
+       output_file    = outputs.files, 
+       output_format  = "BAM",
+       PE_orientation = 'fr', 
+       nthreads       = 8, 
+       indels         = 1,
+       maxMismatches  = 3,
+       phredOffset    = 33,
+       unique         = T )
+
+
+# get gene's counts
+boyer.gene       <- featureCounts( outputs.files, useMetaFeatures = TRUE,
+                                   countMultiMappingReads = FALSE,
+                                   strandSpecific         = 0, 
+                                   isPairedEnd            = TRUE,
+                                   requireBothEndsMapped  = TRUE,
+                                   autosort               = TRUE,
+                                   nthreads               = 8,
+                                   annot.inbuilt = "mm10", allowMultiOverlap = TRUE)
+
+"
+read GSE59970/SRP045149
+PMID:?
+"
+setwd("/home/zhenyisong/data/cardiodata/SRP045149")
+# ln -s /home/zhenyisong/data/cardiodata/SRP051406/mm10_index* ./
+targets.file      <- '/home/zhenyisong/data/cardiodata/SRP045149/targets.txt'
+reads.files       <- read.table(targets.file,header = F)
+
+
+"
+output path, where the resuls are saved
+"
+reads.path        <- '/home/zhenyisong/data/cardiodata/SRP045149/'
+output.path       <- '/home/zhenyisong/data/cardiodata/SRP045149/results/'
+
+reads.files.names <- reads.files$V1
+reads.paths       <- paste0(reads.path,reads.files$V1)
+outputs.files     <- paste0(output.path,reads.files$V1,'.sam')
+
+
+
+base.string       <- 'mm10_index'
+setwd("/home/zhenyisong/data/cardiodata/SRP045149/")
+buildindex( basename = base.string, reference = genome_ref.path )
+
+align( index          = base.string, 
+       readfile1      = reads.paths, 
+       input_format   = "FASTQ", 
+       type           = 'rna',
+       output_file    = outputs.files, 
+       output_format  = "SAM", 
+       nthreads       = 8, 
+       indels         = 1, 
+       maxMismatches  = 3,
+       phredOffset    = 33,
+       unique         = T )
+
+
+perrelo.gene    <- featureCounts( outputs.files, useMetaFeatures = TRUE,
+                                   countMultiMappingReads = FALSE,
+                                   strandSpecific         = 0, 
+                                   nthreads               = 8,
+                                   annot.inbuilt = "mm10", allowMultiOverlap = TRUE)
+
+
+
 "
 GSE49906/SRP029464
+PMID:24752171
 "
 targets.file      <- '/home/zhenyisong/data/cardiodata/SRP029464/targets.txt'
 reads.files       <- read.table(targets.file,header = F)
@@ -198,7 +255,7 @@ outputs.files       <- paste0(output.path,read.path.1,'.bam')
 "
 the base index name
 "
-base.string       = 'mm10_index'
+base.string         <- 'mm10_index'
 
 "
 use the Rsubread command to generate index file
@@ -206,33 +263,39 @@ this index file will be generated and saved at getwd()
 you do not need to generate the script
 "
 setwd("/home/zhenyisong/data/cardiodata/SRP029464")
-#ln -s /home/zhenyisong/data/cardiodata/SRP051406/mm10_index* ./
-
+buildindex( basename = base.string, reference = genome_ref.path )
 "
 this is the function which is called to align the genome
 sequence
 "
 
-align( index         = base.string, 
-       readfile1     = reads.paths.1, 
-       readfile2     = reads.paths.2, 
-       input_format  = "FASTQ", 
-       type          = 'rna',
-       output_file   = outputs.files, 
-       output_format = "BAM", 
-       nthreads      = 8, 
-       indels        = 1,
-       maxMismatches = 3,
-       phredOffset   = 33,
-       unique        = T )
+align( index          = base.string, 
+       readfile1      = reads.paths.1, 
+       readfile2      = reads.paths.2, 
+       input_format   = "FASTQ", 
+       type           = 'rna',
+       output_file    = outputs.files, 
+       output_format  = "BAM",
+       PE_orientation = 'fr', 
+       nthreads       = 8, 
+       indels         = 1,
+       maxMismatches  = 3,
+       phredOffset    = 33,
+       unique         = T )
 
-duncan.gene <- featureCounts( outputs.files, useMetaFeatures = TRUE, 
-                               annot.inbuilt = "mm10", allowMultiOverlap = TRUE)
+cooper.gene    <-   featureCounts( outputs.files, useMetaFeatures = TRUE,
+                                   countMultiMappingReads = FALSE,
+                                   strandSpecific         = 1, 
+                                   isPairedEnd            = TRUE,
+                                   requireBothEndsMapped  = TRUE,
+                                   autosort               = TRUE,
+                                   nthreads               = 8,
+                                   annot.inbuilt = "mm10", allowMultiOverlap = TRUE)
 
-#setwd("/home/zhenyisong/data/cardiodata")
-#save.image(file = 'maturation.Rdata')
-#quit("no")
-#
+setwd("/home/zhenyisong/data/cardiodata")
+save.image(file = 'maturation.update.Rdata')
+quit("no")
+
 
 #---
 #  Now, extract data from above output
@@ -240,8 +303,8 @@ duncan.gene <- featureCounts( outputs.files, useMetaFeatures = TRUE,
 #---
 
 
-#gene         <- boyer.gene
-gene.counts  <- boyer.gene
+gene         <- boyer.gene
+gene.counts  <- gene$counts
 gene.ids     <- gene$annotation$GeneID
 colnames(gene.counts)
 colnames(gene.counts) <- c( 'iP0_1','iP0_2','iP0_3','iP4_1','iP4_2','iP4_3',
@@ -257,7 +320,7 @@ keytypes(org.Mm.eg.db)
 
 columns  <- c("ENTREZID","SYMBOL", "MGI", "GENENAME");
 GeneInfo <- select( org.Mm.eg.db, keys= as.character(gene.ids), 
-                   keytype="ENTREZID", columns = columns);
+                    keytype="ENTREZID", columns = columns);
 m        <- match(gene$annotation$GeneID, GeneInfo$ENTREZID);
 Ann      <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
                           GeneInfo[m, c("SYMBOL", "MGI", "GENENAME")]);
@@ -267,7 +330,7 @@ rownames(gene.counts) <- GeneInfo[m,'SYMBOL'];
 Ann$Chr  <-  unlist( lapply(strsplit(Ann$Chr, ";"), 
                     function(x) paste(unique(x), collapse = "|")))
 Ann$Chr  <- gsub("chr", "", Ann$Chr)
-gene.exprs <- DGEList(counts = boyer.gene, genes = Ann)
+gene.exprs <- DGEList(counts = gene.counts, genes = Ann)
 gene.exprs <- calcNormFactors(gene.exprs)
 dge.tmm                  = t(t(gene.exprs$counts) * gene.exprs$samples$norm.factors)
 #dge.tmm.counts <- round(dge.tmm, digits = 0)
@@ -341,7 +404,7 @@ ggplot(pvecum.df) +
 
 
 
-boyer.cord$color.type<- factor(c(1,1,2,2,3,3,4,4))
+boyer.cord$color.type <- factor(c(1,1,2,2,3,3,4,4))
 
 ggplot(boyer.cord) + 
            geom_point(aes(x = PC1, y = PC2, color = color.type), size = 3) + 
@@ -389,15 +452,19 @@ pc.no <- dim(boyer.lineage.cord)[2]
 pr.var <- boyer.lineage.PCA$sdev^2
 pve    <- pr.var/sum(pr.var)
 pve.df <- data.frame(variance = pve, pca = c(1:pc.no))
-ggplot(pve.df) +
-        xlab('Principle Component') +
-        ylab('Proportion of Variance Explained') +
-        scale_x_continuous( breaks = c(1:pc.no), labels = as.character(c(1:pc.no), 
-                            limits = as.character(c(1:pc.no)))) +
-        geom_point(aes(x = pca, y = variance), size = 3) +
-        geom_line(aes(x = pca, y = variance), size = 0.8) +
-        scale_linetype_discrete() +
-        theme(legend.position="none")
+#---
+# Figure 1B
+#---
+PCA.curve <- ggplot(pve.df) +
+             xlab('Principle Component') +
+             ylab('Proportion of Variance Explained') +
+             scale_x_continuous( breaks = c(1:pc.no), labels = as.character(c(1:pc.no), 
+                                 limits = as.character(c(1:pc.no)))) +
+             geom_point(aes(x = pca, y = variance), size = 3) +
+             geom_line(aes(x = pca, y = variance), size = 0.8) +
+             scale_linetype_discrete() +
+             theme_gray() + 
+             theme(legend.position="none")
 
 pvecum.df <- data.frame(variance = cumsum(pve), pca = c(1:pc.no))
 ggplot(pvecum.df) +
@@ -412,15 +479,20 @@ ggplot(pvecum.df) +
 
 boyer.lineage.cord$color.type<- factor(c(1,1,1,2,2,2,3,3,3,4,4))
 
-ggplot(boyer.lineage.cord) + 
-           geom_point(aes(x = PC1, y = PC2, color = color.type), size = 3) + 
-           scale_colour_manual( name   = 'isolated cardiomyocyte developement stages',
-                                values = c("black", "blue", "red","green"),
-                                labels = c( '0 day isolated cardiomyocytes, P0',
-                                            '4 day isolated cardiomyocytes, P4',
-                                            '7 day isolated cardiomyocytes, P7','adult')) +
-           theme(legend.position = 'bottom',legend.direction = 'vertical') + 
-           guides( color = guide_legend(title.position = 'top') )
+#---
+# Figure 1C?
+#---
+
+PCA.cluster <- ggplot(boyer.lineage.cord) + 
+               geom_point(aes(x = PC1, y = PC2, color = color.type), size = 3) + 
+               scale_colour_manual( name   = 'isolated cardiomyocyte developement stages',
+                                    values = c("black", "blue", "red","green"),
+                                    labels = c( '0 day isolated cardiomyocytes, P0',
+                                                '4 day isolated cardiomyocytes, P4',
+                                                '7 day isolated cardiomyocytes, P7','adult')) +
+               theme_gray() + 
+               theme(legend.position = 'bottom',legend.direction = 'vertical') +              
+               guides( color = guide_legend(title.position = 'top') )
 
 ggplot(boyer.lineage.cord) + 
            geom_point(aes(x = PC2, y = PC3, color = color.type), size = 3) + 
@@ -429,18 +501,54 @@ ggplot(boyer.lineage.cord) +
                                 labels = c( '0 day isolated cardiomyocytes, P0',
                                             '4 day isolated cardiomyocytes, P4',
                                             '7 day isolated cardiomyocytes, P7','adult')) +
+           theme_gray() + 
            theme(legend.position = 'bottom',legend.direction = 'vertical') + 
            guides( color = guide_legend(title.position = 'top') )
 
 rotations <- order(boyer.lineage.PCA$rotation[,1], decreasing = FALSE)
-gene.len  <- 200
+gene.len  <- 400
 total.len <- length(rownames(vsd.no.na.lineage.exprs))
 mature.lineage.boyer.markers <- unique(c( rownames(vsd.no.na.lineage.exprs)[rotations[1:gene.len]],
                                            rownames(vsd.no.na.lineage.exprs)[rotations[(total.len - gene.len):total.len]] ) )
 
+#---
+# redefine fetal/mature genes
+#---
+
+
+
+# check if they are fetal genes by the definition
+
+sds <- rowSds(vsd.no.na.lineage.exprs)
+hist(sds)
+sh  <- shorth(sds)
+lineage.boyer.markers            <- vsd.no.na.lineage.exprs[sds > 0.3,]
+lineage.boyer.tree               <- hclust(as.dist(1 - cor(t(lineage.boyer.markers), method='pearson')), method='complete');
+mature.boyer.lineage.result      <- cutree(lineage.boyer.tree, k = 2)
+mature.boyer.lineage.markers     <- names(mature.boyer.lineage.result)[mature.boyer.lineage.result == 2]
+fetal.boyer.lineage.markers      <- names(mature.boyer.lineage.result)[mature.boyer.lineage.result == 1]
+
+fetal.genes               <- intersect(mature.lineage.boyer.markers ,fetal.boyer.lineage.markers)
+mature.genes              <- intersect(mature.lineage.boyer.markers ,mature.boyer.lineage.markers)
+fetal.lineage.pca.exprs   <- vsd.no.na.lineage.exprs[fetal.genes,]
+mature.lineage.pca.exprs  <- vsd.no.na.lineage.exprs[mature.genes,]
+heatmap.result <- heatmap.2( fetal.lineage.pca.exprs , col = greenred(75), scale  = 'row', 
+						         Rowv = TRUE,Colv = FALSE, density.info = 'none',
+                                 key  = TRUE, trace='none', symm = F,symkey = F,symbreaks = T,
+						         cexRow  = 1, cexCol = 1,srtCol = 30,
+                                 distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
+						         hclustfun  = function(d) hclust(d, method = 'complete'),
+						         dendrogram = 'no',margins = c(12,6),labRow = NA);
+#---
+# export the data to Desktop according to
+# the rquirement by Wang Yin 2016-12-29
+#---
+setwd("C:\\Users\\Yisong\\Desktop")
+write.xlsx(fetal.lineage.pca.exprs, file = 'fetal.genes.xlsx')
+write.xlsx(mature.lineage.pca.exprs, file = 'mature.genes.xlsx')
 ##---
-## this is the test V graph
-## 
+## this is the test Venn's graph
+##---
 
 area1 <- length(mature.boyer.markers)
 area2 <- length(mature.lineage.boyer.markers) 
@@ -473,7 +581,26 @@ read the curated mature/immature dataset
 setwd("E:\\FuWai\\wangli.lab")
 curated.filename  <- 'cardio_manual_maturation_markers.xlsx'
 curated.file.df   <- read.xlsx(curated.filename, sheetIndex = 1, header = TRUE)
-intersect(curated.file.df$geneSymbol, mature.lineage.boyer.markers)
+commom.commom <- intersect(curated.file.df$geneSymbol, mature.lineage.boyer.markers)
+common.matrix <- vsd.no.na.lineage.exprs[commom.commom,]
+P0            <- apply(common.matrix[,1:3],1,median)
+P4            <- apply(common.matrix[,4:6],1,median)
+P7            <- apply(common.matrix[,7:9],1,median)
+P60           <- apply(common.matrix[,10:11],1,median)
+
+
+common.df   <- matrix()
+common.df   <- cbind(P0,P4,P7,P60)
+common.melt <- melt(common.df)
+ggplot(data = common.melt, aes( x = factor(X2, levels = c('P0','P4','P7','P60')), 
+                                y = value, group = factor(X1), colour = factor(X1))) + 
+    geom_line(size = 1) +
+    geom_point(size = 2) + 
+    theme_grey() +
+    xlab('Cardiomyocyte lineage stages') +
+    ylab('Gene Expression Level in log transformation') +
+    scale_colour_discrete(  name  = "Gene names in Consistcy")
+
 #---
 # KEGG analysis
 #--- START
@@ -795,6 +922,94 @@ setwd('/home/zhenyisong/data/cardiodata')
 save.image(file = 'maturation.Rdata')
 quit("no")
 
+
+#--
+# import hisat2 results for Cooper dataset
+#--
+setwd('/home/zhenyisong/data/cardiodata/SRP029464/hisat2')
+file.name <- 'gene_count_matrix.csv'
+cooper.hisat2.data <- read.csv( file.name, header = TRUE, sep = ",",
+                                row.names = 1, stringsAsFactors = FALSE)
+gene.counts     <- as.matrix(sapply(cooper.hisat2.data, as.integer))
+gene.exprs      <- DGEList(counts = gene.counts)
+gene.exprs      <- calcNormFactors(gene.exprs)
+dge.tmm         <- t(t(gene.exprs$counts) * gene.exprs$samples$norm.factors)
+dge.tmm.counts  <- apply(dge.tmm,2, as.integer)
+
+sample.info              <- data.frame( treat  = c( 'PN90','PN28','PN10','PN1','E17','fPN60',
+                                                    'fPN28','fPN1-3','fPN1-2','cPN67',
+                                                    'cPN30','cPN1-2','cPN1') )
+                                                
+dds                      <- DESeqDataSetFromMatrix( countData = dge.tmm.counts,
+                                                    colData   = sample.info,
+                                                    design    = ~ treat)
+vsd                      <- varianceStabilizingTransformation(dds);
+cooper.expr              <- assay(vsd)
+colnames(cooper.expr)    <- c('ventricle-PN90','ventricle-PN28','ventricle-PN10',
+                           'ventricle-PN1','ventricle-E17',' fibroblasts-PN60',
+                           'fibroblasts-PN28','fibroblasts-PN1-3','fibroblasts-PN1-2',
+                           'cardiomyocytes-PN67','cardiomyocytes-PN30','cardiomyocytes-PN1-2',
+                           'cardiomyocytes-PN1')
+
+cooper.no.na.lineage.exprs           <- cooper.expr[!is.na(rownames(cooper.hisat2.data)),c(10:13)]
+rownames(cooper.no.na.lineage.exprs) <- rownames(cooper.hisat2.data)[!is.na(rownames(cooper.hisat2.data))]
+cooper.lineage.PCA  <- prcomp(t(cooper.no.na.lineage.exprs))
+names(cooper.lineage.PCA)
+cooper.lineage.cord <- as.data.frame(cooper.lineage.PCA$x)
+pc.no <- dim(cooper.lineage.cord)[2]
+
+pr.var <- cooper.lineage.PCA$sdev^2
+pve    <- pr.var/sum(pr.var)
+pve.df <- data.frame(variance = pve, pca = c(1:pc.no))
+cooper.lineage.cord$color.type<- factor(c(1,2,3,4))
+ggplot(cooper.lineage.cord) + 
+               geom_point(aes(x = PC1, y = PC2, color = color.type), size = 3) + 
+               scale_colour_manual( name   = 'isolated cardiomyocyte developement stages',
+                                    values = c("black", "blue", "red","green"),
+                                    labels = c( 'cardiomyocytes-PN67',
+                                                'cardiomyocytes-PN30',
+                                                'cardiomyocytes-PN1-2',
+                                                'cardiomyocytes-PN1')) +
+               theme_gray() + 
+               theme(legend.position = 'bottom',legend.direction = 'vertical') +              
+               guides( color = guide_legend(title.position = 'top') )
+
+#setwd('/home/zhenyisong/data/cardiodata')
+#save.image(file = 'cooper.Rdata')
+#quit("no")
+setwd("C:\\Users\\Yisong\\Desktop")
+load('cooper.Rdata')
+rotations <- order(cooper.lineage.PCA$rotation[,1], decreasing = FALSE)
+gene.len  <- 400
+total.len <- length(rownames(cooper.no.na.lineage.exprs))
+mature.lineage.cooper.markers <- unique(c( rownames(cooper.no.na.lineage.exprs)[rotations[1:gene.len]],
+                                           rownames(cooper.no.na.lineage.exprs)[rotations[(total.len - gene.len):total.len]] ) )
+# this trick is not to recyle
+#  the common gene names in table manner
+#-----
+common.features <- sort(intersect(mature.lineage.boyer.markers,mature.lineage.cooper.markers))
+length(common.features)       <- prod(dim(matrix(common.features, ncol = 8)))
+common.matrix   <- matrix(common.features, ncol = 8, byrow = TRUE)
+g <- tableGrob(common.matrix , rows = NULL)
+grid.newpage()
+grid.draw(g)
+#---
+# Venn's digram
+#---
+area1 <- length(mature.lineage.boyer.markers)
+area2 <- length(mature.lineage.cooper.markers)
+cross.area <- length(common.features)
+draw.pairwise.venn( area1, area2, cross.area,
+                    category = c('Boyer.data','Cooper.data'),
+                    fill     = c('purple','blue'),
+                    alpha    = 0.8,
+                    ext.text = F,
+                    cat.col  = c('green','green'),
+                    cat.cex  = c(1.5,1.5),
+                    cat.just = list(c(-0.5,2),c(1.2,1)),
+                    label.col= c('yellow','yellow','yellow'),
+                    lwd      = c(0.5,2),
+                    cex      = c(2,3,2))
 #
 # flowchart creation
 #
@@ -804,11 +1019,12 @@ graph <-
     create_graph() %>%
     set_graph_name("Flow Chart of Mature gene selection") %>%
     set_global_graph_attrs("graph", "overlap", "true") %>%
-    set_global_graph_attrs("node", "color", "black") %>%
+    set_global_graph_attrs("node", "color", "grey75") %>%
     set_global_graph_attrs("node", "fontname", "Helvetica") %>%
     add_n_nodes(5) %>%
     select_nodes_by_id(c(1:5)) %>% 
-    set_node_attrs_ws("shape", "ellipse") %>%
+    set_node_attrs_ws("shape", "retangle") %>%
+    set_node_attrs_ws("style", "filled") %>%
     clear_selection %>%
     add_edges_w_string(
       "1->2 2->3 3->4 5->3", "black") %>%
@@ -817,6 +1033,75 @@ graph <-
                               'Hierarchical clustering')) %>%
     set_node_attrs("fontsize",12) %>%
     set_edge_attrs("arrowsize", 1)
+render_graph(graph)
+setwd("C:\\Users\\Yisong\\Desktop")
+file.temp.name <- 'temp_zhen3.png'
+export_graph(graph, file_name = file.temp.name, file_type = 'png')
+img             <- readPNG('temp_zhen3.png')
+PCA.img         <- rasterGrob(img, interpolate = TRUE)
+#PCA.flowchart   <- qplot() + annotation_raster(img, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf, interpolate = TRUE)
+#PCA.flowchart   <- ggplot() + annotation_custom(PCA.flowchart , xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf)
+PCA.flowchart <- ggplot(mtcars, aes(wt, mpg)) +
+                 xlab(NULL) +
+                 ylab(NULL) +
+                 theme_void() +
+                 geom_blank() + 
+                 annotation_raster(img, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf, interpolate = TRUE )
+unlink(file.temp.name)
+plot_grid(PCA.flowchart, PCA.curve, PCA.cluster, PCA.flowchart, labels=c("A", "B", "C", "D"), ncol = 2, nrow = 2)
+#---
+# please see ino80.zn.R
+#    and load the data in corresponding
+#---
+
+load("ino80.zn.Rdata")
+fetal <- intersect(rownames(vsd.expr),toupper(fetal.genes))
+fetal.heatmap       <- vsd.expr[fetal,]
+ind <- apply(fetal.heatmap, 1, sd) == 0
+subset <- fetal.heatmap[!ind,]
+setwd("C:\\Users\\Yisong\\Desktop")
+png(file.temp.name)
+heatmap.result      <- heatmap.2(subset, col = my_palette, scale  = 'row', 
+						         Rowv = TRUE,Colv = FALSE, density.info = 'none',
+                                 key  = TRUE, trace='none', symm = F,symkey = F,symbreaks = T,
+						         cexRow  = 1, cexCol = 1,srtCol = 30,
+                                 distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
+						         hclustfun  = function(d) hclust(d, method = 'complete'),
+						         dendrogram = 'no',margins = c(12,6),labRow = NA,
+						        );
+dev.off()
+img             <- readPNG(file.temp.name)
+PCA.heatmap     <- ggplot(mtcars, aes(wt, mpg)) +
+                   theme_void() +
+                   geom_blank() + 
+                   annotation_raster(img , xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf, interpolate = TRUE)
+unlink(file = file.temp.name)
+
+plot_grid(PCA.flowchart, PCA.curve, PCA.cluster, PCA.heatmap, labels=c("A", "B", "C", "D"), ncol = 2, nrow = 2)
+
+## end----
+
+
+setwd("C:\\Users\\Yisong\\Desktop")
+
+grid.arrange(PCA.flowchart, PCA.curve, PCA.cluster, PCA.heatmap, ncol=2, nrow =2)
+
+
+
+
+library(ggplot2)
+# Create a box plot
+# Scatter plot
+sp <- ggplot(mpg, aes(x = cty, y = hwy, colour = factor(cyl)))+ 
+  geom_point(size=2.5)
+sp
+# Bar plot
+bp <- ggplot(diamonds, aes(clarity, fill = cut)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle=70, vjust=0.5))
+
+library(gridExtra)
+grid.arrange(sp, bp, sp, g, ncol=2, nrow =2)
 
 plot.A <- render_graph(graph, output = "SVG")
 

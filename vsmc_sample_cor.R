@@ -9,6 +9,7 @@ library(gplots)
 library(genefilter)
 library(RColorBrewer)
 library(ggplot2)
+library(gridExtra)
 
 # @parent program
 #    mergeAffy.pl
@@ -151,8 +152,8 @@ rna.kd.matrix  = rbind(rna.kd.matrix, GSE60642_1,GSE60642_2, GSE60641, GSE65354_
 rna.kd.matrix  = rna.kd.matrix[-1,]
 rna.kd.matrix  = t(rna.kd.matrix)
 
-colnames(rna.kd.matrix) = c('VSMC.wang','AngII-1h','AngII-3h','AngII-24h','AngII','TCF21',
-                             'SENCR_kd','SENCR_mk','Jag_kn','Jag_hr','JAG','Hsp60','TNFA-a')
+colnames(rna.kd.matrix) = c('H2AZ KD','AngII-1h','AngII-3h','AngII-24h','Ang 2','TCF21',
+                             'SENCR_kd','SENCR_mk','Jag_kn','Jag_hr','JAG','Hsp60','TNFa')
 
 "
 transform the data.frame into the log format
@@ -286,13 +287,15 @@ affy.kd.matrix = rbind(affy.kd.matrix, GSE31080_1,GSE31080_2,GSE15841_1,GSE15841
 affy.kd.matrix  = affy.kd.matrix[-1,]
 affy.kd.matrix  = t(affy.kd.matrix)
 
+
+# here I changed according to the request by wang-li ox-LDL_24 to ox_LDL
 colnames(affy.kd.matrix) = c('OPG',   'RANKL',        'TRAIL',      'moxLDL_3h','moxLDL_21h','ME-treated_4h','ME-treated_30h',
                             'FoxM1', 'T.cruzi_24h', 'T.cruzi_48','IL-17','Cholesterol.1','Cholesterol.1_II','HDL',
-                            'APOE+VE', 'APOE','Zyxin','Zyxin_Stretch','CASMC', 'ROCK1', 'ZIPT','TGF-B_Rx','HG_TSP',
-                            'HG1-LG1','Man+TSP1','Man','TAB+GCA','TAB-GCA','LDL_1h','LDL_5h','LDL_24h','oLDL_1h','oLDL_5h',
-                            'oLDL_24h', 'embryonic origin-specific','jasplakinolide','Glucose','Glut1','Versican',
+                            'APOE+VE', 'APOE','Zyxin','Zyxin_Stretch','CASMC', 'rock1', 'ZIPT','TGF-B_Rx','HG_TSP',
+                            'HG1-LG1','Man+TSP1','Man','TAB+GCA','TAB-GCA','LDL_1h','LDL_5h','LDL_24h','ox-LDL_1h','ox-LDL_5h',
+                            'ox-LDL', 'embryonic origin-specific','jasplakinolide','glucose','Glut1','Versican',
                              'CD9','PDGF-BB','BMPR2','cdBMPR2','knBMPR2','edBMPR2','IL-1b','PDGF-DD','thrombin','TRAP',
-                             'TRAP+PTX','fluid Stress','IL-1b')
+                             'TRAP+PTX','fluid stress','IL-1b')
 
 # extract common gene names from 
 
@@ -529,7 +532,15 @@ length(common.name)
 exprs.matrix            = common.matrix[-1,]
 colnames(exprs.matrix)  = colnames.vector
 
-results = cor(exprs.matrix,method = 'spearman')
+"
+sample name and list is from Wang lis preference
+"
+sample.names  <- c( 'H2AZ KD', 'PDGF-BB', 'PDGF-DD','ox-LDL', 
+                 'APOE+VE', 'JAG', 'fluid stress', 'Ang 2', 
+                 'TNFa', 'rock1', 'OPG', 'CD9', 'glucose')
+final.data    <- exprs.matrix[,sample.names]
+
+results.final <- cor(final.data,method = 'spearman')
 
 #rna.cor = cor(rna.log.matrix, method = 'spearman')
 
@@ -539,13 +550,13 @@ results = cor(exprs.matrix,method = 'spearman')
 # the Spearman p.value distribution
 # simulation begin
 #----------------------------------------------
-m_len      = dim(exprs.matrix)[2]
+m_len      = dim(final.data)[2]
 pseudo_num = seq(m_len *m_len)
-random.matrix = exprs.matrix
-shuffle.times = 100000
+random.matrix = final.data
+shuffle.times = 1000
 for( j in 1:shuffle.times) {
-    for ( i in 1:dim(exprs.matrix)[1]) {
-        random.matrix[1,] = exprs.matrix[1,sample(dim(exprs.matrix)[2])]
+    for ( i in 1:dim(final.data)[1]) {
+        random.matrix[1,] = final.data[1,sample(dim(final.data)[2])]
     }
     pseudo.cor = cor(random.matrix, method = 'spearman')
     pseudo_num = cbind(pseudo_num,as.vector(pseudo.cor))
@@ -555,7 +566,7 @@ pseudo_num = pseudo_num[,-1]
 pdf("pseudo.pvalue.pdf")
 hist(as.vector(pseudo_num))
 dev.off()
-cutoff   = mean(as.vector(pseudo_num) > 0.2)
+cutoff   = mean(as.vector(pseudo_num) < -0.13)
 fileConn = file("cutoff.txt")
 writeLines(c("hello","world",cutoff), fileConn)
 close(fileConn)
@@ -568,64 +579,88 @@ close(fileConn)
 # Figure
 # heatmap of sample correlation
 #-------------------------------------------------------------
-my_palette     = rev(colorRampPalette(brewer.pal(10, "RdBu"))(256))
-heatmap.result = heatmap.2(results, col = my_palette, scale  = 'none', 
-						   Rowv = T,Colv = T, density.info = 'none',
-                           key  = TRUE, trace='none', symm = T,symkey = F,symbreaks = T,
-						   margins = c(5.5,5.5),dendrogram = 'none',
-                           cexRow  = 0.4, cexCol = 0.4,
-                           labRow = rownames(results),
-                           labCol = colnames(results)
-						  );
-order.sample.names <- rownames(results)[heatmap.result$rowInd]
-partial.name       <- c('VSMC.wang', 'PDGF-BB','PDGF-DD','AngII','TRAP+PTX',
-                         'APOE+VE', 'JAG','oLDL_24h','Jag_kn', 'TNFA-a',
-                         'TGF-B_Rx', 'TAB-GCA', 'LDL_1h', 'LDL_5h',
-                          'fluid Stress')
 
-order.sample.names <- setdiff(order.sample.names, partial.name)
-blackCol           <- rep('black',length(order.sample.names))
-brownCol           <- rep('green4',length(partial.name))
-order.sample.names <- union(partial.name, order.sample.names)
+
+my_palette     = rev(colorRampPalette(brewer.pal(10, "RdBu"))(256))
+#heatmap.result = heatmap.2(results, col = my_palette, scale  = 'none', 
+#						   Rowv = T,Colv = T, density.info = 'none',
+#                           key  = TRUE, trace='none', symm = T,symkey = F,symbreaks = T,
+#						   margins = c(5.5,5.5),dendrogram = 'none',
+#                           cexRow  = 0.4, cexCol = 0.4,
+#                           labRow = rownames(results),
+#                           labCol = colnames(results)
+#						  );
+#order.sample.names <- rownames(results)[heatmap.result$rowInd]
+#partial.name       <- c('VSMC.wang', 'PDGF-BB','PDGF-DD','AngII','TRAP+PTX',
+#                         'APOE+VE', 'JAG','oLDL_24h','Jag_kn', 'TNFA-a',
+#                         'TGF-B_Rx', 'TAB-GCA', 'LDL_1h', 'LDL_5h',
+#                          'fluid Stress')
+#
+#order.sample.names <- setdiff(order.sample.names, partial.name)
+#blackCol           <- rep('black',length(order.sample.names))
+#brownCol           <- rep('green4',length(partial.name))
+#order.sample.names <- union(partial.name, order.sample.names)
+#colRow.vector      <- c(brownCol,blackCol)
+#colCol.vector      <- colRow.vector
+#
+#heatmap.2(results[order.sample.names, order.sample.names], col = my_palette, scale  = 'none', 
+#						   Rowv = F,Colv = F, density.info = 'none',
+#                           key  = TRUE, trace='none', symm = T,symkey = F,symbreaks = T,
+#						   margins = c(5.5,5.5),dendrogram = 'none',
+#                           cexRow  = 0.4, cexCol = 0.4,
+#                           labRow = order.sample.names,
+#                           labCol = order.sample.names,
+#                           colRow = colRow.vector,
+#                           colCol = colCol.vector
+#						  );
+#
+
+
+blackCol           <- rep('black',length(results.final) - 1)
+brownCol           <- rep('green4',1)
 colRow.vector      <- c(brownCol,blackCol)
 colCol.vector      <- colRow.vector
 
-heatmap.2(results[order.sample.names, order.sample.names], col = my_palette, scale  = 'none', 
+heatmap.2(results.final, col = my_palette, scale  = 'none', 
 						   Rowv = F,Colv = F, density.info = 'none',
                            key  = TRUE, trace='none', symm = T,symkey = F,symbreaks = T,
 						   margins = c(5.5,5.5),dendrogram = 'none',
-                           cexRow  = 0.4, cexCol = 0.4,
-                           labRow = order.sample.names,
-                           labCol = order.sample.names,
+                           cexRow  = 0.8, cexCol = 0.8, srtCol = 30,
+                           labRow = sample.names,
+                           labCol = sample.names,
                            colRow = colRow.vector,
                            colCol = colCol.vector
 						  );
+plot.new()
+results.map = signif(results.final, digits = 2)
+grid.table( results.map,
+            theme = ttheme_default(base_size = 3.5))
 
-#my_palette  = colorRampPalette(c("white","green","green4","violet","purple"))(255)
+##my_palette  = colorRampPalette(c("white","green","green4","violet","purple"))(255)
 
 #whole.heatmap = heatmap( results,  margins = c(10, 10),
 #                         cexCol = 0.4, cexRow = 0.4);
 #partial.map = results[results['wangli.data',] > 0.9,results['wangli.data',] > 0.9]
-
-partial.matrix = results[ results['VSMC.wang',] > 0.1 | results['VSMC.wang',] < -0.1, 
-                       results[,'VSMC.wang'] > 0.1 | results[,'VSMC.wang'] < -0.1]
-partial.map    = signif(partial.matrix, digits = 3)
+#
+#partial.matrix = results[ results['VSMC.wang',] > 0.1 | results['VSMC.wang',] < -0.1, 
+#                       results[,'VSMC.wang'] > 0.1 | results[,'VSMC.wang'] < -0.1]
+#partial.map    = signif(partial.matrix, digits = 3)
 #write.xlsx(partial.map, file = "cutoff_0.8.xls")
 #heatmap(  partial.map,  margins = c(10, 10),
 #           symm = TRUE, 
 #           cexCol = 1, cexRow = 1);
 
 #partial.distance = 1 - partial.map
-heatmap.result = heatmap.2(partial.map, col = my_palette, scale  = 'none', 
-						   Rowv = T,Colv = T, density.info = 'none',
-                           key  = TRUE, trace='none', symm = T,symkey = F,symbreaks = T,
-						   cexRow  = 0.6, cexCol = 0.6,srtCol = 30, cellnote = partial.map,
-                           notecex = 0.5, notecol= "red",
-						   margins = c(10,5),dendrogram = 'none',
-                           labRow = rownames(partial.map),
-                           labCol = colnames(partial.map)
-						  );
-
+#heatmap.result = heatmap.2(partial.map, col = my_palette, scale  = 'none', 
+#						   Rowv = T,Colv = T, density.info = 'none',
+#                           key  = TRUE, trace='none', symm = T,symkey = F,symbreaks = T,
+#						   cexRow  = 0.6, cexCol = 0.6,srtCol = 30, cellnote = partial.map,
+#                           notecex = 0.5, notecol= "red",
+#						   margins = c(10,5),dendrogram = 'none',
+#                           labRow = rownames(partial.map),
+#                           labCol = colnames(partial.map)
+#						  );
+#
 #rownames(results)[results['SRR01',] > 0.9]
 #colnames.vector[whole.heatmap$rowInd]
 #summary(as.vector(rna.cor))

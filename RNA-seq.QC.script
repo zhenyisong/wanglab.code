@@ -1,3 +1,15 @@
+#!/bin/bash
+#PBS -k o
+#PBS -l nodes=1:ppn=8:dc,vmem=32gb,walltime=48:00:00 
+#PBS -M zhenyisong@gmail.com 
+#PBS -m abe
+#PBS -N miRNA
+#PBS -j oe
+#PBS -e /home/zhenyisong/data/cardiodata/SRP056382/bowtie/trim
+#PBS -o /home/zhenyisong/data/cardiodata/SRP056382/bowtie/trim
+
+## qsub /home/zhenyisong/data/wanglilab/wangcode/RNA-seq.QC.script
+
 ## http://rseqc.sourceforge.net/
 ## Trimmomatic: A flexible read trimming tool for Illumina NGS data
 ## http://www.usadellab.org/cms/
@@ -8,14 +20,35 @@
 ## http://blog.sciencenet.cn/blog-777771-620367.html
 ## the above blog contains
 ##---
+source /etc/profile
 trim='/home/zhenyisong/data/software/bin/Trimmomatic-0.36/trimmomatic-0.36.jar'
 adaptor='/home/zhenyisong/data/software/bin/Trimmomatic-0.36/adapters/illuminaSmallRNA.fa'
 #java -jar $trim SE -phred33 -threads 8 SRR1922516.fastq SRR1922516.trimed.fastq  ILLUMINACLIP:$adaptor:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15
-java -jar $trim SE -phred33 -threads 8 SRR1922516.fastq SRR1922516.trimed.fastq  CROP:27 HEADCROP:2
+#java -jar $trim SE -phred33 -threads 8 SRR1922516.fastq SRR1922516.trimed.fastq  CROP:27 HEADCROP:2
+
+cd /home/zhenyisong/data/cardiodata/SRP056382
+fastq='/home/zhenyisong/data/cardiodata/SRP056382'
+hsa='/home/zhenyisong/data/genome/miRNA/hsa.gff3'
+files=(*.fastq)
+len=${#files[@]}
+
+cd /home/zhenyisong/data/cardiodata/SRP056382/bowtie/trim
+rm -rf *
+bowtie='/usr/local/bin/bowtie'
+ln -s /home/zhenyisong/data/bringback/igenome/Homo_sapiens/NCBI/GRCh38/Sequence/BowtieIndex/* ./
+for (( i=0; i<${len}; i++ ));
+do
+    filename=${files[$i]}
+    base=${filename%.fastq}
+    java -jar $trim SE -phred33 -threads 4 $fastq/$base.fastq $base.trimed.fastq  ILLUMINACLIP:$adaptor:2:18:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15
+    $bowtie genome -p 4 -n 1 -l 8 -a --best --strata --sam $base.trimed.fastq > $base.sam
+    samtools view -bS $base.sam | samtools sort -n -@ 8 - $base
+    python -m HTSeq.scripts.count -s no --stranded=no -r name -f bam -t miRNA -m union -i Name -q $base.bam $hsa > $base.txt
+done
 ##---
 ## https://www.biostars.org/p/59640/
 ## how to remove the adaptor from reads
 ##---
-cutadapt -e 0.15 -O 7 -m 15 -a TGGAATTCTCGGGTGCCAAGG SRR1922516.fastq -o SRR1922516.cutadapt.fastq
+##cutadapt -e 0.15 -O 7 -m 15 -a TGGAATTCTCGGGTGCCAAGG SRR1922516.fastq -o SRR1922516.cutadapt.fastq
 
-infer_experiment.py -i results/SRR4044061_1.fastq.bam -r /home/zhenyisong/data/genome/mm10_RefSeq.bed
+##infer_experiment.py -i results/SRR4044061_1.fastq.bam -r /home/zhenyisong/data/genome/mm10_RefSeq.bed

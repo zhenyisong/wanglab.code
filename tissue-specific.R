@@ -1,7 +1,7 @@
 # see similiar program
 # cardioFibroblast.R
 # @parent
-#      hisat2.R
+#      hisat2.script
 # @raw data
 #    GSE36025/SRP012040
 #    PMID: 25582902
@@ -24,7 +24,9 @@ library(annotate)
 library(limma)
 
 
-
+#
+# setwd("C:\\Users\\Yisong\\Desktop")
+# load('tissue-specific.Rdata')
 setwd('/home/zhenyisong/data/cardiodata/SRP012040')
 targets.file      <- '/home/zhenyisong/data/cardiodata/SRP012040/targets.txt'
 reads.files       <- read.table(targets.file,header = F)
@@ -216,13 +218,16 @@ tissue.score <- tao.index * tissue.max
 
 hisat2.data[,1][tissue.score != 0 & !is.na(tissue.score)]
 heatmap.matrix <- tissue.matrix[tissue.score != 0 & !is.na(tissue.score),]
-heatmap.result <- heatmap.2( heatmap.matrix, col = greenred(75),scale  = 'row', 
-						     Rowv = TRUE,Colv = FALSE, density.info = 'none',key = TRUE, trace = 'none', 
-						     cexCol = 0.6,distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
-						     hclustfun = function(d) hclust(d, method = 'complete'),
-						     dendrogram = 'row',margins = c(12,9),labRow = NA, srtCol = 30,
-						     lmat = rbind(c(4,0), c(2,1),c(0,3)), lhei = c(1,3, 0.5), lwid = c(1,4));
-match('Nppa',rownames(hisat2.data))
+heatmap.result <- heatmap.2( heatmap.matrix , col = greenred(75), scale  = 'row', 
+						         Rowv = TRUE,Colv = FALSE, density.info = 'none',
+                                 key  = TRUE, trace='none', symm = F,symkey = F,symbreaks = T,
+                                 cexCol = 0.5,srtCol = 30,
+                                 distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
+						         hclustfun  = function(d) hclust(d, method = 'complete'),
+						         dendrogram = 'no',labRow = NA);
+
+fibroblast.gene.names <- (hisat2.data[,1])[tissue.score != 0 & !is.na(tissue.score)]
+cardiac.gene.names    <- (hisat2.data[,1])[tissue.score != 0 & !is.na(tissue.score)]
 setwd('/home/zhenyisong/data/cardiodata')
 save.image('tissue-specific.Rdata')
 q("no")

@@ -1,0 +1,81 @@
+#!/bin/bash
+#PBS -k o
+#PBS -l nodes=1:ppn=8:dc,vmem=32gb,walltime=48:00:00 
+#PBS -M zhenyisong@gmail.com 
+#PBS -m abe
+#PBS -N HISAT2
+#PBS -j oe
+#PBS -e /home/zhenyisong/data/cardiodata/SRP012040
+#PBS -o /home/zhenyisong/data/cardiodata/SRP012040
+
+
+## quick start
+## qsub /home/zhenyisong/data/wanglilab/wangcode/hisat2.liangping.script
+##---
+## discarded!!!
+## #python -m HTSeq.scripts.count -f bam -r name -s no $base.sorted.bam $gtf > $base.txt
+##---
+
+#---
+# unique mapping read
+#    see the hisat2 manual: 
+#        https://ccb.jhu.edu/software/hisat2/manual.shtml
+#        SAM output
+#    see the discussion
+#        https://www.researchgate.net/post/How_can_I_get_uniquely_mapped_reads_from_Tophatv2012
+#--- 
+
+source /etc/profile
+##----------------------------------------------------------
+## old index file was broken, I do not know why.
+## I used the command below to re-build the genome
+##----------------------------------------------------------
+
+hisat2='/data/software/bin/hisat2-2.0.4'
+stringtie='/home/zhenyisong/bin/stringtie'
+preDE='/usr/bin/prepDE.py'
+hg19_genome='/home/zhenyisong/data/bringback/igenome/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/genome.fa'
+hg19_index='/home/zhenyisong/data/genome/hisat2/hg19'
+mergelist='mergelist.txt'
+merge_gtf='stringtie_merged.gtf'
+cd /home/zhenyisong/data/genome/hisat2
+rm -rf hg19
+mkdir hg19
+cd $hg19_index
+## discard to build the index.
+$hisat2/hisat2-build -f -p 4 $hg19_genome genome
+
+gtf='/home/zhenyisong/data/bringback/igenome/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.gtf'
+fastq='/home/zhenyisong/data/wanglilab/projects/VZR20160421/Rawdata'
+
+## if unpiared the data, -U parameter will be used
+##shopt -s nullglob
+cd $fastq
+files1=(*_R1.fastq)
+files2=(*_R2.fastq)
+len=${#files1[@]}
+
+cd /home/zhenyisong/data/wanglilab/projects/VZR20160421
+
+rm -rf hisat2
+mkdir hisat2
+cd hisat2
+
+#---
+# this is dangerous!!!!
+#---
+#rm -rf *
+
+for (( i=0; i<${len}; i++ ));
+do
+    forward=${files1[$i]}
+    backward=${files2[$i]}
+    base=${forward%.fastq}
+    $hisat2/hisat2 -p 4 --dta --fr -x $hg19_index/genome -1 $fastq/$forward -2 $fastq/$backward -S  $base.sam
+    samtools view -H $base.sam > header.temp.sam
+    samtools view $base.sam | grep -w "NH:i:1" | cat header.temp.sam - | samtools view -Sb - |samtools sort -@ 4 - $base
+    $stringtie -e -B -p 4 -G $gtf -o ballgown/$base/$base.gtf $base.bam 
+done
+
+$preDE -i ballgown
+rm header.temp.sam

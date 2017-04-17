@@ -14,13 +14,15 @@
 sebnif='/data/software/bin/sebnif-1.3rc/sebnif'
 lncRNAgtf='/home/zhenyisong/data/genome/lncRNA/NONCODE2016_mouse_mm10_current_lncRNA.gtf'
 wholeRNAgtf='/home/zhenyisong/data/genome/lncRNA/mm10_lnc.protein.all.gtf'
-mm10_gtf='/home/zhenyisong/data/genome/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf'
+mm10_gtf='/home/zhenyisong/data/bringback/igenome/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf'
 hisat2lncRNA='/home/zhenyisong/data/cardiodata/SRP082390/hisat2/stringtie_merged.gtf'
 mm10_repeat='/home/zhenyisong/data/genome/lncRNA/mm10-simpleRepeat.bed'
+mm10_genome='/home/zhenyisong/data/bringback/igenome/Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome.fa'
 anno_maker='/data/software/bin/sebnif-1.3rc/util/anno_maker/anno_maker'
 auto_download='/data/software/bin/sebnif-1.3rc/iSeeRNA/auto_download_data.sh'
 configuration_iRNAsee='/data/software/bin/sebnif-1.3rc/iSeeRNA/conf'
 iSeeRNA='/data/software/bin/sebnif-1.3rc/iSeeRNA/iSeeRNA'
+wg2array='/data/software/bin/sebnif-1.3rc/iSeeRNA/util/Wig2Array'
 test='/home/zhenyisong/data/cardiodata/SRP082390/tophat/SRR4044050_cufflink/transcripts.gtf'
 
 ## download the annotion from sun, kun lab, the site in HK
@@ -60,3 +62,5 @@ cp mm10.conf Mouse.conf
 example='/data/software/bin/sebnif-1.3rc/example/HSkMC.gff'
 $sebnif -g Mus10 -r mm10-lincRNA-NONCODE -o test_temp_zhen3/sebnif $hisat2lncRNA
 $sebnif -g Mus10 -r mm10-lincRNA-NONCODE -o test_temp_zhen3/sebnif $test
+
+$wg2array hg38.phastCons100way.bw ./

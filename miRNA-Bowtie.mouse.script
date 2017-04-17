@@ -1,0 +1,47 @@
+#!/bin/bash
+#PBS -k o
+#PBS -l nodes=1:ppn=8:dc,vmem=32gb,walltime=48:00:00 
+#PBS -M zhenyisong@gmail.com 
+#PBS -m abe
+#PBS -N miRNA
+#PBS -j oe
+#PBS -e /home/zhenyisong/data/cardiodata/SRP057170
+#PBS -o /home/zhenyisong/data/cardiodata/SRP057170
+
+##
+## qsub /home/zhenyisong/data/wanglilab/wangcode/miRNA-Bowtie.mouse.script
+## PMID:25888698 
+##    Optimization of miRNA-seq data preprocessing.
+
+##---
+## miRBase dataset
+## miRBase is NCBI assemble, please see mmu.gff3 file header
+##
+## /home/zhenyisong/data/genome/miRNA
+##---
+
+source /etc/profile
+cd /home/zhenyisong/data/cardiodata/SRP057170
+mmu='/home/zhenyisong/data/genome/miRNA/mmu.gff3'
+fastq_path='/home/zhenyisong/data/cardiodata/SRP057170'
+files=(*.fastq)
+len=${#files[@]}
+
+
+bwa='/usr/local/bin/bwa'
+
+bwa_genome='/home/zhenyisong/data/bringback/igenome/igenome/Mus_musculus/NCBI/GRCm38/Sequence/WholeGenomeFasta/genome.fa'
+cd /home/zhenyisong/data/cardiodata/SRP057170
+rm -rf bwa
+mkdir bwa
+cd bwa
+ln -s $bwa_genome ./
+$bwa index -a bwtsw genome.fa
+for (( i=0; i<${len}; i++ ));
+do
+    filename=${files[$i]}
+    base=${filename%.fastq}
+    $bwa aln -t 8 -n 1 -o 0 -e 0 -l 8 -k 0 genome.fa $fastq_path/$base.fastq > $base.sai
+    $bwa samse genome.fa $base.sai $fastq_path/$base.fastq | samtools sort -n -@ 8 - $base
+    python -m HTSeq.scripts.count -s no --stranded=no -r name -f bam -t miRNA -m union -i Name -q $base.bam $mmu > $base.txt
+done

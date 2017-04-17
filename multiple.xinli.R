@@ -18,6 +18,7 @@ library(factoextra)
 library(clusterProfiler)
 library(pathview)
 library(sva)
+library(tidyverse)
 
 setwd('D:\\wangli_data\\Rdata')
 load('multiple.xinli.Rdata')
@@ -216,6 +217,7 @@ Ann      <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
 Ann$Chr  <- unlist( lapply(strsplit(Ann$Chr, ";"), 
                     function(x) paste(unique(x), collapse = "|")))
 Ann$Chr  <- gsub("chr", "", Ann$Chr)
+#----
 
 gene.exprs <- DGEList(counts = gene.counts, genes = Ann)
 gene.exprs <- calcNormFactors(gene.exprs)
@@ -309,7 +311,7 @@ gene.result      <- topTable(  fit2,
                                number        = Inf, 
                                adjust.method = "BH", 
                                sort.by       = "p",
-                               );
+                               p.value = 0.05);
 
 
 # setwd("C:\\Users\\Yisong\\Desktop")
@@ -499,6 +501,70 @@ secretory2gene <- data.frame( diseaseId = unlist(as.character(rep('smc',length(s
 secretory.GSEA <- GSEA(pathway.genelist, TERM2GENE = secretory2gene,  minGSSize = 3) 
 
 gene.result.772[gene.result.772$GeneID %in% c(smc.file.df$EntrezID, 107829),]
+
+# figure generation
+#---
+
+# load image
+gene         <- gene.mouse
+gene.counts  <- gene$counts[,12:17]
+gene.ids     <- gene$annotation$GeneID
+
+
+columns  <- c("ENTREZID","SYMBOL","MGI","GENENAME");
+GeneInfo <- AnnotationDbi::select( org.Mm.eg.db, keys= as.character(gene.ids), 
+                   keytype = "ENTREZID", columns = columns);
+m        <- match(gene$annotation$GeneID, GeneInfo$ENTREZID);
+Ann      <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
+                          GeneInfo[m, c("SYMBOL", "MGI","GENENAME")]);
+
+Ann$Chr  <- unlist( lapply(strsplit(Ann$Chr, ";"), 
+                    function(x) paste(unique(x), collapse = "|")))
+Ann$Chr  <- gsub("chr", "", Ann$Chr)
+
+gene.exprs.772 <- DGEList(counts = gene.counts[,1:4], genes = Ann)
+gene.exprs.772 <- gene.exprs.772 %>% calcNormFactors(method = 'TMM') %>% rpkm(log = TRUE);
+colnames(gene.exprs.772) <- c('Control-1','Control-2','Thocs5-1','Thocs5-2')
+rownames(gene.exprs.772) <- make.names(Ann$SYMBOL, unique = TRUE)
+median.exprs             <- NULL
+median.exprs             <- cbind( (gene.exprs.772[,1] + gene.exprs.772[,2])/2,
+                                   (gene.exprs.772[,3] + gene.exprs.772[,4])/2)
+
+median.exprs             <- cbind(median.exprs, rep(0,dim(median.exprs)[1]))
+colnames(median.exprs)   <- c('Control','Treat','Type')
+
+
+setwd("E:\\FuWai\\wangli.lab\\Others")
+vcms.markers      <- 'SM-markers.xlsx' # this data is manually curated
+vcms.dif.table    <- read.xlsx(vcms.markers,header = TRUE, stringsAsFactors = FALSE, sheetIndex = 1)
+vcms.sec.table    <- read.xlsx(vcms.markers,header = TRUE, stringsAsFactors = FALSE, sheetIndex = 2)
+vsmc.dif.genename <- vcms.dif.table$GeneSymbol
+vsmc.sec.genename <- vcms.sec.table$GeneSymbol
+
+median.exprs[row.names(median.exprs) %in% vsmc.dif.genename,3] <- 1
+median.exprs[row.names(median.exprs) %in% vsmc.sec.genename,3] <- 2
+vsmc.dif.df          <- median.exprs[vsmc.dif.genename,]
+vsmc.sec.df          <- median.exprs[vsmc.sec.genename,]
+
+median.exprs         <- as.data.frame(median.exprs)
+vsmc <- ggplot(data = median.exprs)
+vsmc + ylab('Knockdown of Thocs5') +
+      geom_point(aes( x = Control, y = Treat,
+                      color = as.factor(Type), size = as.factor(Type), alpha = as.factor(Type) ) )+
+       scale_size_manual(values = c(2, 2, 2), guide = FALSE) + 
+       scale_alpha_manual(values = c(1/200, 1, 1), guide = FALSE) + 
+       scale_colour_manual(name = 'gene groups',values = c("black", "blue", "red"), 
+                           labels = c('non-related genes','differentiation marker','secretory marker')) + 
+
+       geom_abline(intercept = 0.58, slope = 1, size = 1, alpha = 1/10) +
+       geom_abline(intercept = -0.58, slope = 1, size = 1, alpha = 1/10) +
+       geom_text( aes(x = Control, y = Treat), label = rownames(vsmc.dif.df), 
+                  data = vsmc.dif.df,hjust = 1,vjust = 1, size = 2, col = 'blue') +
+       geom_text( aes(x = Control, y = Treat), label = rownames(vsmc.sec.df), 
+                  data = vsmc.sec.df,hjust = 1,vjust = 1, size = 2, col = 'red') +
+       theme(legend.position = c(0.8, 0.2),legend.title.align = 0.5)
+
+
 # secretory gene heatmap
 
 #---test code

@@ -1,0 +1,106 @@
+#!/bin/bash
+#PBS -k o
+#PBS -l nodes=2:ppn=16:dc,vmem=64gb,walltime=48:00:00 
+#PBS -M zhenyisong@gmail.com 
+#PBS -m abe
+#PBS -N HISAT2
+#PBS -j oe
+#PBS -e /home/zhenyisong/data/cardiodata/SRP082390
+#PBS -o /home/zhenyisong/data/cardiodata/SRP082390
+
+
+## qsub /home/zhenyisong/data/wanglilab/wangcode/tophat-lincRNA.script
+##---
+## discarded!!!
+## #python -m HTSeq.scripts.count -f bam -r name -s no $base.sorted.bam $gtf > $base.txt
+##---
+
+#---
+# unique mapping read
+#    see the hisat2 manual: 
+#        https://ccb.jhu.edu/software/hisat2/manual.shtml
+#        SAM output
+#    see the discussion
+#        https://www.researchgate.net/post/How_can_I_get_uniquely_mapped_reads_from_Tophatv2012
+#--- 
+
+#---
+#  see PMID: 27560171
+#     Title:Transcript-level expression analysis of RNA-seq experiments with HISAT, StringTie and Ballgown.
+#---
+
+#---
+# this raw data from Wang yibin'lab is strandness
+#    use this to infer strandness:
+#       infer_experiment.py -r mm10_RefSeq.bed  -i hisat2/SRR4044044.sam
+#       mm10_RefSeq.bed data is from http://rseqc.sourceforge.net
+#       or the bed foramt can be obtained from GFF file
+#       This is PairEnd Data
+# Fraction of reads explained by "1++,1--,2+-,2-+": 0.0096
+# Fraction of reads explained by "1+-,1-+,2++,2--": 0.9558
+# Fraction of reads explained by other combinations: 0.0346
+# --rna-strandness RF
+# see http://bowtie-bio.sourceforge.net/manual.shtml
+# RF
+# FR
+#----
+
+#---
+# non-code RNA reference dataset is downloaded from NON-CODE database
+# its bed format was transformed by using Galaxy program
+#    BED_to_GFF3 converter, otherwise it will fail.
+# I found the GTF file in NONCODE database. all-versions
+#
+#---
+
+source /etc/profile
+##----------------------------------------------------------
+## old index file was broken, I do not know why.
+## I used the command below to re-build the genome
+##----------------------------------------------------------
+
+mm10_genome='/home/zhenyisong/data/genome/mm10_Bowtie2Index/mm10.fa'
+mm10_bowtie2_index='/home/zhenyisong/data/genome/mm10_Bowtie2Index'
+merge_file_list='tophat_filelist.txt'
+lnc_merge_tophat='tophat.lnc.gtf'
+cd $mm10_index
+## discard to build the index.
+## $hisat2/hisat2-build -f -p 8 $mm10_genome genome
+
+GTF='/home/zhenyisong/data/genome/lncRNA/mm10_lnc.protein.all.gtf'
+fastq='/home/zhenyisong/data/cardiodata/SRP082390'
+
+## if unpiared the data, -U parameter will be used
+##shopt -s nullglob
+cd /home/zhenyisong/data/cardiodata/SRP082390
+files1=(*_1.fastq)
+files2=(*_2.fastq)
+len=${#files1[@]}
+
+cd /home/zhenyisong/data/cardiodata/SRP082390/tophat
+
+#---
+# this is dangerous!!!!
+#---
+rm -rf *
+rm $lnc_merge_tophat $merge_file_list
+
+
+
+for (( i=0; i<${len}; i++ ));
+do
+    forward=${files1[$i]}
+    backward=${files2[$i]}
+    base=${forward%_1.fastq}
+    tophat -p 4 --library-type=fr-firststrand -o ${base}_tophat $mm10_bowtie2_index/mm10 $fastq/$forward $fastq/$backward 
+    cufflinks -p 4 -o ${base}_cufflink ${base}_tophat/accepted_hits.bam 
+done
+
+for (( i=0; i<${len}; i++ ));
+do
+    forward=${files1[$i]}
+    base=${forward%_1.fastq}
+    echo "./${base}_cufflink/transcripts.gtf" >> $merge_file_list
+done
+
+cuffmerge -g $GTF -s $mm10_genome -p 4 $merge_file_list

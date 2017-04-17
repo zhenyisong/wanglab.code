@@ -46,6 +46,12 @@
 # FR
 #----
 
+# if we reverse the order,then the output of the RSeQC result
+# This is PairEnd Data
+#Fraction of reads failed to determine: 0.0023
+#Fraction of reads explained by "1++,1--,2+-,2-+": 0.9600
+#Fraction of reads explained by "1+-,1-+,2++,2--": 0.0377
+
 #---
 # non-code RNA reference dataset is downloaded from NON-CODE database
 # its bed format was transformed by using Galaxy program
@@ -53,7 +59,36 @@
 # I found the GTF file in NONCODE database. all-versions
 #
 #---
+ 
+## hisat2 options
+##--dta/--downstream-transcriptome-assembly
+##Report alignments tailored for transcript assemblers including StringTie.
+##With this option, HISAT2 requires longer anchor lengths for de novo discovery 
+##of splice sites. This leads to fewer alignments with short-anchors, 
+##which helps transcript assemblers improve significantly in computation and memory usage.
+##---
 
+##----
+##-e  Limits the processing of read alignments to only estimate and 
+##    output the assembled transcripts matching the reference transcripts 
+##    given with the -G option (requires -G, recommended for -B/-b). 
+##    With this option, read bundles with no reference transcripts will 
+##    be entirely skipped, which may provide a considerable speed boost 
+##    when the given set of reference transcripts is limited to a set of 
+##    target genes, for example.
+##-B	This switch enables the output of Ballgown input table files (*.ctab) 
+##    containing coverage data for the reference transcripts given with the 
+##    -G option. (See the Ballgown documentation for a description of these files.) 
+##    With this option StringTie can be used as a direct replacement of the 
+##    tablemaker program included with the Ballgown distribution. 
+##    If the option -o is given as a full path to the output transcript file, 
+##    StringTie will write the *.ctab files in the same directory as the output GTF.
+##-b <path>	Just like -B this option enables the output of *.ctab files for Ballgown, 
+##   but these files will be created in the provided directory <path> instead of
+##   the directory specified by the -o option. Note: adding the -e option is 
+##   recommended with the -B/-b options, unless novel transcripts are still 
+##   wanted in the StringTie GTF output.     
+##----
 source /etc/profile
 ##----------------------------------------------------------
 ## old index file was broken, I do not know why.
@@ -63,20 +98,25 @@ source /etc/profile
 hisat2='/data/software/bin/hisat2-2.0.4'
 stringtie='/home/zhenyisong/bin/stringtie'
 preDE='/usr/bin/prepDE.py'
-mm10_genome='/home/zhenyisong/data/genome/mm10_Bowtie1Index/mm10.fa'
+mm10_genome='/home/zhenyisong/data/bringback/igenome/Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome.fa'
 mm10_index='/home/zhenyisong/data/genome/hisat2/mm10'
 mergelist='mergelist.txt'
-merge_gtf='stringtie_merged.gtf'
-ucsc_mm10_GTF='/home/zhenyisong/data/genome/mm10_Bowtie1Index/genes.gtf'
+merge_gtf='/home/zhenyisong/data/cardiodata/SRP082390/hisat2/stringtie_merged.gtf'
+ucsc_mm10_GTF='/home/zhenyisong/data/bringback/igenome/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf'
 NONCODE_GTF='/home/zhenyisong/data/genome/lncRNA/NONCODE2016_mouse_mm10_current_lncRNA.gtf'
-## cd $mm10_index
+##cd $mm10_index
 ## discard to build the index.
 ## cd /home/zhenyisong/data/genome/hisat2/new_mm10
+##rm -rf *
 ## $hisat2/hisat2-build -f -p 8 $mm10_genome genome
-
+## cd /home/zhenyisong/data/genome/lncRNA
 ## cat $ucsc_mm10_GTF $NONCODE_GTF > mm10_lnc.protein.all.gtf 
 
 GTF='/home/zhenyisong/data/genome/lncRNA/mm10_lnc.protein.all.gtf'
+# shasum $GTF
+# 8ca130ea81f715ccdb8d0f1131c93e277b764520
+# shasum NONCODE2016_mouse_mm10_current_lncRNA.gtf
+# 6ae7716ac275effd7553dba7f0031ef107f3aa6c
 fastq='/home/zhenyisong/data/cardiodata/SRP082390'
 
 ## if unpiared the data, -U parameter will be used
@@ -91,31 +131,31 @@ cd /home/zhenyisong/data/cardiodata/SRP082390/hisat2
 #---
 # this is dangerous!!!!
 #---
-#rm -rf *
+rm -rf *
 
-# I discard the -G parameter
-#
 
 for (( i=0; i<${len}; i++ ));
 do
     forward=${files1[$i]}
     backward=${files2[$i]}
     base=${forward%_1.fastq}
-    #$hisat2/hisat2 -p 8 --dta --fr --rna-strandness RF -x $mm10_index/genome -1 $fastq/$forward -2 $fastq/$backward -S $base.sam
-    #samtools view -Sb $base.sam |samtools sort -@ 8 - $base
-    $stringtie -p 8 -G $GTF -o $base.gtf -l $base $base.bam 
-    #$stringtie -p 8 -o $base.gtf -l $base $base.bam  
+    $hisat2/hisat2 -p 8 --dta --fr --rna-strandness RF -x $mm10_index/genome -1 $fastq/$backward -2 $fastq/$forward -S $base.sam
+    samtools view -Sb $base.sam |samtools sort -@ 8 - $base
+    $stringtie -p 8 -G $GTF -o $base.gtf -l $base $base.bam  
 done
+
+exit 0
 
 ls S*.gtf > $mergelist
 
 stringtie --merge -p 8 -G $GTF -o $merge_gtf $mergelist
-#stringtie --merge -p 8 -o $merge_gtf $mergelist
 
-exit 0
+## exit 0
 
-gffcompare -G -r $wholeRNAgtf $hisat2lncRNA 
-cuffcompare -i $hisat2lncRNA -r $wholeRNAgtf
+# this may not need since I use iSeeRNA instead
+#gffcompare -G -r $GTF $merge_gtf
+
+##cuffcompare -i $merge_gtf -r $GTF
 
 for (( i=0; i<${len}; i++ ));
 do
