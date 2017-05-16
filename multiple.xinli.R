@@ -19,8 +19,12 @@ library(clusterProfiler)
 library(pathview)
 library(sva)
 library(tidyverse)
+library(rat2302.db)
+library(affy)
+library(annotate)
 
 setwd('D:\\wangli_data\\Rdata')
+#save.image('multiple.xinli.Rdata')
 load('multiple.xinli.Rdata')
 
 # cd /home/zhenyisong/data/wanglilab/wangcode
@@ -208,7 +212,7 @@ gene.counts  <- gene$counts[,1:4]
 gene.ids     <- gene$annotation$GeneID
 
 columns  <- c("ENTREZID","SYMBOL","MGI","GENENAME");
-GeneInfo <- select( org.Mm.eg.db, keys= as.character(gene.ids), 
+GeneInfo <- AnnotationDbi::select( org.Mm.eg.db, keys= as.character(gene.ids), 
                    keytype = "ENTREZID", columns = columns);
 m        <- match(gene$annotation$GeneID, GeneInfo$ENTREZID);
 Ann      <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
@@ -217,10 +221,11 @@ Ann      <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
 Ann$Chr  <- unlist( lapply(strsplit(Ann$Chr, ";"), 
                     function(x) paste(unique(x), collapse = "|")))
 Ann$Chr  <- gsub("chr", "", Ann$Chr)
-#----
 
 gene.exprs <- DGEList(counts = gene.counts, genes = Ann)
 gene.exprs <- calcNormFactors(gene.exprs)
+
+
 
 # according to the suggestion by wang li
 #----
@@ -234,6 +239,8 @@ colnames(rpkm.genes) <- c('Control-1','Control-2','FBS-1','FBS-2')
 setwd("C:\\Users\\Yisong\\Desktop")
 write.xlsx(rpkm.lfc.genes, file = 'xinliRPKM.FBS.lfc.xlsx', sheetName = 'Log_Fold_Change')
 write.xlsx(rpkm.genes, file = 'xinliRPKM.FBS.lfc.xlsx', sheetName = 'gene log(RPKM)', append = TRUE)
+#
+#
 #--- no need if we pull out batch effect, see below
 #---
 dge.tmm    <- t(t(gene.exprs$counts) * gene.exprs$samples$norm.factors)
@@ -298,20 +305,25 @@ fviz_cluster( clara.res,
 # read it carefully
 # https://support.bioconductor.org/p/83690/
 # https://support.bioconductor.org/p/54447/
+
+dge.tmm           <- t(t(gene.exprs$counts) * gene.exprs$samples$norm.factors)
+dge.tmm.counts    <- apply(dge.tmm, 2, as.integer)
+rownames(dge.tmm.counts) <- Ann$GeneID
 batch.effect <- factor(c(1,2,1,2), levels = 1:2, labels = c('cell1','cell2'))
 groups       <- factor(c(1,1,2,2), levels = 1:2, labels = c('Control','FBS'))
 design       <- model.matrix(~ 0 + groups + batch.effect);
 colnames(design) <- c('Control','FBS','Batch')
 contrast.matrix  <- makeContrasts(FBS - Control, levels = design)
-d.norm           <- voom(gene.exprs, design = design)
+d.norm           <- voom(dge.tmm.counts, design = design)
 fit              <- lmFit(d.norm, design)
 fit2             <- contrasts.fit(fit,contrast.matrix)
 fit2             <- eBayes(fit2)
-gene.result      <- topTable(  fit2, 
-                               number        = Inf, 
-                               adjust.method = "BH", 
-                               sort.by       = "p",
-                               p.value = 0.05);
+FBS.sm.phenotype.result      <- topTable(  fit2, 
+                                           number        = Inf, 
+                                           adjust.method = "BH", 
+                                           sort.by       = "p",
+                                           p.value       = 0.05,
+                                           lfc           = 2);
 
 
 # setwd("C:\\Users\\Yisong\\Desktop")
@@ -564,6 +576,130 @@ vsmc + ylab('Knockdown of Thocs5') +
                   data = vsmc.sec.df,hjust = 1,vjust = 1, size = 2, col = 'red') +
        theme(legend.position = c(0.8, 0.2),legend.title.align = 0.5)
 
+
+# xinli
+# QC PDGFBB migration genes clusters
+# curated from public database
+# https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE19106
+# rat vascular smooth muscle
+# 
+#---
+setwd("D:\\wangli_data\\GSE19106")
+
+raw.data    <- ReadAffy();
+rma.data    <- affy::rma(raw.data);
+exprs.data  <- exprs(rma.data)
+probes      <- rownames(exprs.data)
+gene.symbol <- unlist(mget(probes, rat2302SYMBOL, ifnotfound = NA))
+rownames(exprs.data) <- gene.symbol
+f           <- factor( c(1,1,2,2 ), levels = c(1:2),
+                       labels = c("Control","PDGFBB"))
+design      <- model.matrix(~ 0 + f)
+
+colnames(design)      <- levels(f)
+fit                   <- lmFit(exprs.data, design)
+contrast.matrix       <- makeContrasts(PDGFBB - Control,levels = design)
+fit2                  <- contrasts.fit(fit, contrast.matrix)
+fit2                  <- eBayes(fit2)
+result                <- topTable(fit2, coef = 1, adjust = "BH", number = Inf,
+                                  p.value = 0.05, lfc = 0.58)
+
+migration.genes       <- na.omit(result$ID)
+
+
+# processing 772 data set from Xinli
+gene                  <- gene.mouse
+gene.counts           <- gene$counts[,12:15]
+gene.ids              <- gene$annotation$GeneID
+columns               <- c("ENTREZID","SYMBOL","MGI","GENENAME");
+GeneInfo              <- AnnotationDbi::select( org.Mm.eg.db, keys= as.character(gene.ids), 
+                                keytype = "ENTREZID", columns = columns);
+m                     <- match(gene$annotation$GeneID, GeneInfo$ENTREZID);
+Ann                   <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
+                                       GeneInfo[m, c("SYMBOL", "MGI","GENENAME")]);
+                      
+Ann$Chr               <- unlist( lapply(strsplit(Ann$Chr, ";"), 
+                                 function(x) paste(unique(x), collapse = "|")))
+gene.exprs            <- gene.counts %>% DGEList(genes = Ann) %>% calcNormFactors()
+
+Ann$Chr               <- gsub("chr", "", Ann$Chr)
+cell.lines            <- factor(rep(c(1,2), 2), levels = 1:2, labels = c('C1','C2'))
+groups                <- factor(c(1,1,2,2), levels = 1:2, labels = c('Control','Thoc5'))
+
+
+design                <- model.matrix(~ 0 + groups + cell.lines);
+colnames(design)      <- c('Control','Thoc5','Batch')
+contrast.matrix       <- makeContrasts(Thoc5 - Control, levels = design)
+d.norm                <- voom(gene.exprs, design = design)
+fit                   <- lmFit(d.norm)
+fit2                  <- contrasts.fit(fit,contrast.matrix)
+fit2                  <- eBayes(fit2)
+gene.result           <- topTable(  fit2, 
+                                    number        = Inf, 
+                                    adjust.method = "BH", 
+                                    sort.by       = "p",
+                                    );
+
+                      
+migration.db             <- gene.result$GeneID[gene.result$SYMBOL %in% migration.genes]
+pathway.genelist         <- gene.result$logFC
+names(pathway.genelist)  <- gene.result$GeneID
+
+pathway.genelist         <- sort(pathway.genelist, decreasing = TRUE)
+
+migration2gene           <- data.frame( diseaseId = unlist(as.character(rep('smc',length(migration.db)))), 
+                                        geneId    = unlist(as.integer(migration.db)), check.names = TRUE)
+migration.GSEA           <- GSEA(pathway.genelist, TERM2GENE = migration2gene ,maxGSSize = 5000, pvalueCutoff = 1)
+
+
+# migration DB using the FBS data xinli, RNA-seq
+#---
+fbs.migration.db         <- rownames(FBS.sm.phenotype.result)
+migration2gene           <- data.frame( diseaseId = unlist(as.character(rep('fbs.migration',length(fbs.migration.db)))), 
+                                        geneId    = unlist(as.integer(fbs.migration.db)), check.names = TRUE)
+
+fbs.migration.GSEA       <- GSEA(pathway.genelist, TERM2GENE = migration2gene, maxGSSize = 5000, pvalueCutoff = 1)
+#preparing geneSet collections...
+#GSEA analysis...
+#no term enriched under specific pvalueCutoff...
+
+# just a joke to p.hack the data analysis
+#---
+pvalue      <- seq( 0.1,0.001, by = -0.001 )
+lfc.value   <- seq( 0.4, 4, by = 0.01 )
+
+# pvalue <- c(0.05, 0.03)
+# lfc.value <- c(0.58, 1.5, 2,2.5)
+# small sample to crack
+#---
+result.mat  <- NULL
+
+blackgoat <- function (pvalue, lfc.value, fit.param, pathway.whole) {
+    for(p in pvalue) {
+        for(f in lfc.value) {
+            result.buffer <- topTable(  fit.param, 
+                                        number        = Inf, 
+                                        adjust.method = "BH", 
+                                        sort.by       = "p",
+                                        p.value       = p,
+                                        lfc           = f);
+
+            buffer.db    <- rownames(result.buffer)
+            buffer2gene  <- data.frame( diseaseId = unlist(as.character(rep('fbs.migration',length(buffer.db)))), 
+                                        geneId    = unlist(as.integer(buffer.db)), check.names = TRUE)
+
+            buffer.GSEA  <- GSEA(pathway.whole, TERM2GENE = buffer2gene, minGSSize = 4, maxGSSize = 5000, pvalueCutoff = 1)
+            if(buffer.GSEA$p.adjust < 0.05) {
+                print(p)
+                print(f)
+                result.mat <- append(c(p,f), result.mat)
+            }           
+        }
+    }
+    return(matrix(t(result.mat),ncol = 2, byrow = T)) 
+}
+
+result.vec <- blackgoat(pvalue, lfc.value, fit2, pathway.genelist)
 
 # secretory gene heatmap
 
