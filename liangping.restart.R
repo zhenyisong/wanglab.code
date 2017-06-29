@@ -96,6 +96,19 @@ human.output.filenames <- basename(read.1.files) %>% sub(pattern = '_R1_001.fast
                           paste0(liangp.output.path,'/', . ,'.bam')
 sample.names           <- basename(read.1.files) %>% sub(pattern = '_R1_001.fastq.gz', replacement = '')
 
+# preQC by nextflow
+# cd /home/zhenyisong/biodata/wanglab/wangdata/lianglab/nextdata/nextflowQC
+# ln -s /mnt/date/Sequencing/FastQ/20170605_LF_RNAseq_LPBD/h_* 
+# rm h_vsmc*
+# ln -s /mnt/date/Sequencing/FastQ/170616_LF_RNAseq/LP-2* ./
+# ln -s /mnt/date/Sequencing/FastQ/20170621_LF_RNAseq/LP-1* ./
+# ln -s /mnt/s *.gz |wc -l
+# 24
+# nextflow.sh -p 'liangp' -g hg38 -r "*{R1,R2}*.fastq.gz"
+
+# new full whole QC procedure
+#
+
 # preQC by QuasR
 #
 sampleFile      <- '/tmp/temp.zhen3'
