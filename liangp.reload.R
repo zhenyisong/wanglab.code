@@ -43,6 +43,7 @@ pkgs <- c( 'tidyverse','Rsubread','org.Hs.eg.db','edgeR',
            'limma', 'DESeq2', 'genefilter','grid',
            'openxlsx','pheatmap','gridExtra','ggrepel',
            'QuasR','annotate','clusterProfiler',
+           'GGally','RColorBrewer',
            'cluster','factoextra',"ggpubr",
            'BSgenome.Hsapiens.UCSC.hg38',
            'BSgenome.Hsapiens.UCSC.hg38.Rbowtie')
@@ -197,6 +198,12 @@ gene         <- liangp.genes
 gene.counts  <- gene$counts
 gene.ids     <- gene$annotation$GeneID
 
+
+# this need to be updated to pipeline
+# use the inner_join call?
+# which would be much flexible
+#---
+
 columns      <- c("ENTREZID","SYMBOL", "GENENAME");
 GeneInfo     <- select( org.Hs.eg.db, keys= as.character(gene.ids), 
                         keytype = "ENTREZID", columns = columns);
@@ -213,6 +220,7 @@ Ann$Chr      <- gsub("chr", "", Ann$Chr)
 # QC check
 #---
 sample.p3.liangp  <- data.frame( treat = c('WT.H9.Basal','WT.H9.Basal','WT.H9.PMA','WT.H9.PMA') )
+
 liangp.p3.vst     <- liangp.genes %$% counts[,7:10] %>%
                      DESeqDataSetFromMatrix(colData = sample.p3.liangp, design = ~ treat) %>%
                      DESeq() %>%
@@ -265,7 +273,7 @@ p3.screeplot <- ggplot(pve.p3.df) +
 
 p3.screeplot
 
-color.bar <- colorRampPalette(c("midnightblue", "grey", "mediumvioletred"))(10) 
+color.bar <- colorRampPalette(c("midnightblue", "grey", "mediumvioletred"), alpha = TRUE)(10) 
 draw_colnames_45 <- function (coln, gaps, ...) {
     coord <- pheatmap:::find_coordinates( length(coln), gaps)
     x     <- coord$coord - 0.5 * coord$size
@@ -278,12 +286,20 @@ assignInNamespace(x = "draw_colnames", value = "draw_colnames_45",
                   ns = asNamespace("pheatmap"))          
 p3.sample.heatmap <- liangp.p3.vst %>% subset(sds > 0.3) %>%
                      cor() %>%
-                     pheatmap( ., cluster_rows = T, cluster_cols = T,
-                               color = color.bar, scale = 'none', fontsize_col = 8, 
-                               fontsize_row = 8, cellwidth = 20, cellheight = 20,
-                               labels_row = pca.p3.groups, labels_col = pca.p3.groups)
+                     pheatmap( cluster_rows = T, cluster_cols = T,
+                               color = c(color.bar, alpha = 0.1), scale = 'none', fontsize_col = 9, 
+                               fontsize_row = 9, cellwidth = 40, cellheight = 40,
+                               labels_row = pca.p3.groups, labels_col = pca.p3.groups,
+                               display_numbers = TRUE, number_color = 'orange',
+                               fontsize_number = 10)
 p3.sample.heatmap
 
+color.pal          <- rainbow(5)
+p3.sample.corrmap  <- liangp.p3.vst %>% subset(sds > 0.3) %>% 
+                      ggcorr( method  =  c("pairwise", "spearman"), 
+                              label = TRUE, limits = c(0.7, 1))
+
+p3.sample.corrmap
 # this is deprecated
 # only one point in cetroid
 # please check this reponse
@@ -389,6 +405,18 @@ p3.gsea.result              <- liangp.p3.logFC %>%
                                      maxGSSize = 5000, pvalueCutoff = 1)
 p3.gsea.plot                <- gseaplot(p3.gsea.result, 'cardiotropy')
 
+# single out the sample 4 index = 3
+#                       7, index = 4
+
+p3.rpkm.log <- liangp.genes %$% counts[,7:10] %>% DGEList(genes = Ann) %>% 
+                                calcNormFactors() %>% rpkm(log = TRUE)
+liangp.sample4.gsea        <- (p3.rpkm.log[,4] - apply(p3.rpkm.log[,1:2], 1, mean)) %>%
+                              sort(decreasing = T) %>% 
+                              GSEA( TERM2GENE = cartrophy.geneset, 
+                                    maxGSSize = 5000, pvalueCutoff = 1)
+
+
+(liangp.sample4.gsea)
 # the above indicate that the
 # cardiac hypertrophy pathyway was stimulated
 # then I tried to confirm using the whole gene epxression level;
@@ -419,7 +447,102 @@ nonparam.result      <- wilcox.test( gene.exprs ~ status.d ,
                                     data = cardiotropy.tidy, paired = T)
 (nonparam.result)
 
+# manual check the cardiac hypertrophy genes
+# curated base upone the recent review
+# PMID: 24663494
+# PLoS One. 2014 Mar 24;9(3):e92903. 
+# A systematic review of fetal genes as biomarkers of 
+# cardiac hypertrophy in rodent models of diabetes.
+# another
+# title:
+# A personalized, multi-omics approach identifies genes 
+# involved in cardiac hypertrophy and heart failure
+# http://www.biorxiv.org/content/early/2017/03/24/120329.full.pdf+html
+# 
+# PMID: 23258295 
+# title:
+# Molecular basis of physiological heart growth: fundamental concepts and new players.
+# 
+# ---
 
+hg38.cardiotrophy.geneID        <- c('4878','4879','3280','4625','58')
+names(hg38.cardiotrophy.geneID) <- c('NPPA', 'NPPB','HES1','MYH7','ACTA1')
+
+liangp.p3.counts  <- liangp.genes %$% counts[,7:10] %>%
+                     DESeqDataSetFromMatrix(colData = sample.p3.liangp, design = ~ treat) %>%
+                     DESeq() %>% counts(normalized = TRUE) %>% apply(c(1,2), as.integer)
+
+(liangp.p3.counts[hg38.cardiotrophy.geneID,])
+
+cardiotrophy.markers           <- liangp.p3.counts[hg38.cardiotrophy.geneID,] 
+dimnames(cardiotrophy.markers) <- list( names(hg38.cardiotrophy.geneID),
+                                        c( 'WT.H9.Basal-3','WT.H9.Basal-7',
+                                           'WT.H9.PMA-4','WT.H9.PMA-8') )
+
+cardiotrophy.marker.table      <- tableGrob( cardiotrophy.markers)
+grid.newpage()
+grid.draw(cardiotrophy.marker.table)
+
+# deleting 4/8 respectively
+#---
+
+# set deleing sample id
+# 3 is the sample-4
+# 4 is corresponding to sample 8
+#---
+sample.id   <- 3 # this is 8
+p3.rpkm.log <- liangp.genes %$% counts[,7:10] %>% DGEList(genes = Ann) %>% 
+                                calcNormFactors() %>% rpkm(log = TRUE) %>%
+                                as.data.frame() %>%
+                                filter(rownames(.) %in% cardio.ann.df$HumanEntrezID)
+cardiotropy.tidy.del <- data.frame( gene.exprs  = c(apply(p3.rpkm.log[,1:2], 1, mean),
+                                                    p3.rpkm.log[,sample.id]),
+                                    status.d    = factor( rep(c(1,2), 
+                                                              each = nrow(p3.rpkm.log)),
+                                                          levels = 1:2,
+                                                          labels = c('normal','disease')))
+nonparam.result.del  <- wilcox.test( gene.exprs ~ status.d , 
+                                     data = cardiotropy.tidy.del, paired = T)
+(nonparam.result.del)
+
+
+# 
+
+liangp.p3.log     <- liangp.genes %$% counts[,7:10] %>%
+                     DESeqDataSetFromMatrix(colData = sample.p3.liangp, design = ~ treat) %>%
+                     DESeq() %>% counts(normalized = TRUE) %>% apply(c(1,2), as.integer) %>%
+                     add(1) %>% log
+
+
+
+cardiotrophy.markers.log <- liangp.p3.log[hg38.cardiotrophy.geneID,] 
+cardiotrophy.markers.df  <- data.frame( avg   = apply(cardiotrophy.markers.log[,-3], 1, median), 
+                                        ratio = cardiotrophy.markers.log[,4] / 
+                                                apply(cardiotrophy.markers.log[,-3], 1, median))
+PMA.model.df     <- data.frame( avg   = apply(liangp.p3.log[,-3], 1, median), 
+                                ratio = liangp.p3.log[,4] / apply(liangp.p3.log[,-3], 1, median)) %>%
+                    filter(complete.cases(.) & !is.infinite(rowSums(.))) %>%
+                    filter((ratio <= 4 & avg >= .4))
+
+# remove illagal letter, which can call the function in package
+# library(IDPmisc)
+# NaRV.omit(df)
+# is much better?
+#---
+
+
+p3.sample.dotplot <- ggplot(data = PMA.model.df, aes( x= avg, y = ratio)) +
+                     geom_point(alpha = 0.1) +
+                     geom_point( data  = cardiotrophy.markers.df, aes(x =  avg , y = ratio), 
+                                 color = 'red', size = 2, shape = 16) +
+                     geom_text_repel( data  = cardiotrophy.markers.df, aes(x =  avg , y = ratio),
+                                      label = names(hg38.cardiotrophy.geneID), 
+                                      color = 'green3', size = 3.5, 
+                                      fontface = "bold") +
+                     xlab('average expression counts (log)') + 
+                     ylab('ratio PMA/Basal (log)') +
+                     theme_classic()
+(p3.sample.dotplot)
 # output the result in Excel file
 # using new package
 #---
