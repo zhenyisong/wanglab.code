@@ -1,8 +1,8 @@
 # @author Yisong Zhen
 # @since  2017-06-22
-# @update 2017-06-29
+# @update 2017-08-15
 #
-# @rawdata
+# @rawdata PE model, Human
 # contact with Dr. Liang, Ping, his paired-end project
 # the preprocessing was completed by yaofang
 # nohup R CMD BATCH /home/zhenyisong/biodata/wanglab/wangcode/liangping.restart.R &
@@ -43,7 +43,8 @@ pkgs <- c( 'tidyverse','Rsubread','org.Hs.eg.db','edgeR',
            'limma', 'DESeq2', 'genefilter','grid',
            'openxlsx','pheatmap','gridExtra','ggrepel',
            'QuasR','annotate','clusterProfiler',
-           'GGally','RColorBrewer',
+           'cowplot','tools',
+           'GGally','RColorBrewer','RDAVIDWebService',
            'cluster','factoextra',"ggpubr",
            'BSgenome.Hsapiens.UCSC.hg38',
            'BSgenome.Hsapiens.UCSC.hg38.Rbowtie')
@@ -93,6 +94,9 @@ liangp.files.3         <- list.files( path = human.rawdata.path.3, pattern = "LP
                                       full.names = TRUE, recursive = FALSE, ignore.case = FALSE, include.dirs = F)
 
 liangp.files           <- c(liangp.files.1, liangp.files.2, liangp.files.3)
+# add this line at 2017-07-21
+#--
+rawdata.figureprints   <- md5sum(liangp.files)
 read.1.files           <- liangp.files[grep("R1",liangp.files)]
 read.2.files           <- liangp.files[grep("R2",liangp.files)]
 
@@ -183,13 +187,13 @@ align( index          = base.string,
 # take  gene count
 #
 liangp.genes      <- featureCounts( human.output.filenames, useMetaFeatures = TRUE,
-                                       countMultiMappingReads = FALSE,
-                                       strandSpecific         = 0, 
-                                       isPairedEnd            = TRUE,
-                                       requireBothEndsMapped  = TRUE,
-                                       autosort               = TRUE,
-                                       nthreads               = 15,
-                                       annot.inbuilt = "hg38", allowMultiOverlap = TRUE)
+                                    countMultiMappingReads = FALSE,
+                                    strandSpecific         = 0, 
+                                    isPairedEnd            = TRUE,
+                                    requireBothEndsMapped  = TRUE,
+                                    autosort               = TRUE,
+                                    nthreads               = 15,
+                                    annot.inbuilt = "hg38", allowMultiOverlap = TRUE)
 
 
 
@@ -205,7 +209,7 @@ gene.ids     <- gene$annotation$GeneID
 #---
 
 columns      <- c("ENTREZID","SYMBOL", "GENENAME");
-GeneInfo     <- select( org.Hs.eg.db, keys= as.character(gene.ids), 
+GeneInfo     <- AnnotationDbi::select( org.Hs.eg.db, keys= as.character(gene.ids), 
                         keytype = "ENTREZID", columns = columns);
 m            <- match(gene$annotation$GeneID, GeneInfo$ENTREZID);
 Ann          <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
@@ -561,5 +565,597 @@ p3.sample.dotplot <- ggplot(data = PMA.model.df, aes( x= avg, y = ratio)) +
 #}
 #saveWorkbook(liangp.wb, file = "liangp.xlsx", overwrite = TRUE)
 #
+# end of Project II
+# ---
+
+
+# Project II
+# TRPC1
+# 二、TRPC1课题
+# 1、比较WT H9 Basal（3、7）与H9-TRPC1-KO Basal（9、11）
+# 2、比较WT H9 ＋ PMA（4、8）与H9-TRPC1-KO PMA（10、12）
+#---
+
+sample.p2.1.liangp  <- data.frame( treat = c('WT.H9.Basal','WT.H9.Basal','H9.TRPC1.KO','H9.TRPC1.KO') )
+
+liangp.p2.1.vst     <- liangp.genes %$% counts[,c(7,8,4,3)] %>%
+                       DESeqDataSetFromMatrix(colData = sample.p2.1.liangp, design = ~ treat) %>%
+                       DESeq() %>%
+                       varianceStabilizingTransformation() %>% assay()
+colnames(liangp.p2.1.vst) <- c('WT.H9.Basal-3','WT.H9.Basal-7','H9.TRPC1.KO-9','H9.TRPC1.KO-11')
+sds <- rowSds(liangp.p2.1.vst)
+sh  <- shorth(sds)
+(sh)
+
+
+liangp.p2.1.pca          <- liangp.p2.1.vst %>% subset(sds > 0.1) %>%
+                            t() %>% prcomp
+
+pca.p2.1.groups          <- c('WT.H9.Basal-3','WT.H9.Basal-7','H9.TRPC1.KO-9','H9.TRPC1.KO-11')
+
+plot( liangp.p2.1.pca$x[,c(1,2)], 
+      xlim = c(-90,100), ylim = c(-60, 75), col = 'red', pch = 16 )
+text( liangp.p2.1.pca$x[,1], liangp.p2.1.pca$x[,2], 
+      labels = pca.p2.1.groups , cex = 0.75, pos = 3, adj = c(0,1))
+
+
+#--- END project p2.1
+
+sample.p2.2.liangp  <- data.frame( treat = c('WT.H9.PMA','WT.H9.PMA','H9.TRPC1.PMA','H9.TRPC1.PMA') )
+
+liangp.p2.2.vst     <- liangp.genes %$% counts[,c(9,10,5,6)] %>%
+                       DESeqDataSetFromMatrix(colData = sample.p2.2.liangp, design = ~ treat) %>%
+                       DESeq() %>%
+                       varianceStabilizingTransformation() %>% assay()
+colnames(liangp.p2.2.vst)     <- c('WT.H9.PMA-4','WT.H9.PMA-8','H9.TRPC1.PMA-10','H9.TRPC1.PMA-12')
+
+sds <- rowSds(liangp.p2.2.vst)
+sh  <- shorth(sds)
+(sh)
+
+liangp.p2.2.pca          <- liangp.p2.2.vst %>% subset(sds > 0.3) %>%
+                            t() %>% prcomp
+liangp.p2.2.pve         <- liangp.p2.2.pca$sdev^2/sum(liangp.p2.2.pca$sdev^2)
+(liangp.p2.2.pve)
+
+pca.p2.2.groups          <- c('WT.H9.PMA-4','WT.H9.PMA-8','H9.TRPC1.PMA-10','H9.TRPC1.PMA-12')
+
+plot( liangp.p2.2.pca$x[,c(1,2)], 
+      xlim = c(-80,200), ylim = c(-100, 80), col = 'green', pch = 16)
+text( liangp.p2.2.pca$x[,1], liangp.p2.2.pca$x[,2], 
+      labels = pca.p2.2.groups , cex = 0.75, pos = 3, adj = c(0,1))
+
+
+# start project 1
+# 一、CIB1课题
+# 1、比较WT H9 Basal（3、7）与H9-CIB1-KO Basal（1、5）
+# 2、比较WT H9 ＋ PMA（4、8）与H9-CIB1-KO PMA（2、6）
+#---
+
+sample.p1.1.liangp  <- data.frame( treat = c('WT.H9.Basal','WT.H9.Basal','H9.CIB1.KO','H9.CIB1.KO') )
+
+liangp.p1.1.vst     <- liangp.genes %$% counts[,c(7,8,12,1)] %>%
+                       DESeqDataSetFromMatrix(colData = sample.p1.1.liangp, design = ~ treat) %>%
+                       DESeq() %>%
+                       varianceStabilizingTransformation() %>% assay()
+colnames(liangp.p1.1.vst) <- c('WT.H9.Basal-3','WT.H9.Basal-7','H9.CIB1.KO-1','H9.CIB1.KO-5')
+sds <- rowSds(liangp.p1.1.vst)
+sh  <- shorth(sds)
+(sh)
+
+
+liangp.p1.1.pca          <- liangp.p1.1.vst %>% subset(sds > 0.15) %>%
+                            t() %>% prcomp
+
+liangp.p1.1.pve         <- liangp.p1.1.pca$sdev^2/sum(liangp.p1.1.pca$sdev^2)
+(liangp.p1.1.pve)
+
+pca.p1.1.groups          <- c('WT.H9.Basal-3','WT.H9.Basal-7','H9.CIB1.KO-1','H9.CIB1.KO-5')
+
+plot( liangp.p1.1.pca$x[,c(1,2)], 
+      xlim = c(-70,135), ylim = c(-70, 50), col = 'blue', pch = 16 )
+text( liangp.p1.1.pca$x[,1], liangp.p1.1.pca$x[,2], 
+      labels = pca.p1.1.groups , cex = 0.75, pos = 3, adj = c(0,1))
+
+#--- END p-1.1
+
+sample.p1.2.liangp  <- data.frame( treat = c('WT.H9.PMA','WT.H9.PMA','H9.CIB1.PMA','H9.CIB1.PMA') )
+
+liangp.p1.2.vst     <- liangp.genes %$% counts[,c(9,10,11,2)] %>%
+                       DESeqDataSetFromMatrix(colData = sample.p1.2.liangp, design = ~ treat) %>%
+                       DESeq() %>%
+                       varianceStabilizingTransformation() %>% assay()
+colnames(liangp.p1.2.vst) <- c('WT.H9.PMA-4','WT.H9.PMA-8','H9.CIB1.PMA-2','H9.CIB1.PMA-6')
+sds <- rowSds(liangp.p1.2.vst)
+sh  <- shorth(sds)
+(sh)
+
+
+liangp.p1.2.pca          <- liangp.p1.2.vst %>% subset(sds > 0.2) %>%
+                            t() %>% prcomp
+liangp.p1.2.pve          <- liangp.p1.2.pca$sdev^2/sum(liangp.p1.2.pca$sdev^2)
+(liangp.p1.2.pve)
+
+pca.p1.2.groups          <- c('WT.H9.PMA-4','WT.H9.PMA-8','H9.CIB1.PMA-2','H9.CIB1.PMA-8')
+
+plot( liangp.p1.2.pca$x[,c(1,2)], 
+      xlim = c(-80,190), ylim = c(-60, 110), col = 'orange', pch = 16 )
+text( liangp.p1.2.pca$x[,1], liangp.p1.2.pca$x[,2], 
+      labels = pca.p1.2.groups , cex = 0.75, pos = 3, adj = c(0,1))
+
+
+# now perform the DGE analysis
+# see liangp email:
+# 课题1：TRPC1基因敲除对于心肌细胞功能及PMA诱导的心肌肥厚中的作用研究
+# 1、WT H9 Basal：#3，#7
+# 2、WT H9 ＋ PMA：#4，#8
+# 3、H9-TRPC1-KO Basal：#9，#11
+# 4、H9-TRPC1-KO PMA：#10，#12
+#---
+
+# in responding to liangp email Aug, 07
+# I changed the contrast matrix
+# 2017-08-07
+#--
+wp1.reload.group               <- factor( c( 'WT.H9.Basal','WT.H9.Basal','WT.H9.PMA','WT.H9.PMA',
+                                            'H9.TRPC1.KO','H9.TRPC1.KO','H9.TRPC1.PMA','H9.TRPC1.PMA'), 
+                                          levels = c( 'WT.H9.Basal','WT.H9.PMA','H9.TRPC1.KO','H9.TRPC1.PMA'));
+wp1.reload.design              <- model.matrix(~ 0 + wp1.reload.group)
+
+colnames(wp1.reload.design)    <- levels(wp1.reload.group)
+wp1.contrast.matrix            <- makeContrasts( H9.TRPC1.KO - H9.TRPC1.PMA, WT.H9.Basal - WT.H9.PMA,
+                                                 levels = wp1.reload.design)
+liangp.wp1.result              <- liangp.genes %$% counts[,c(7:10,3:6)] %>% 
+                                  DGEList(genes = Ann) %>% 
+                                  calcNormFactors() %>% 
+                                  voom(design = wp1.reload.design) %>%
+                                  lmFit(wp1.reload.design) %>% 
+                                  contrasts.fit(wp1.contrast.matrix ) %>%
+                                  eBayes()
+liangp.wp1.rpkm                <- liangp.genes %$% counts[,c(7:10,3:6)] %>% 
+                                  DGEList(genes = Ann) %>% 
+                                  calcNormFactors() %>% rpkm()
+colnames(liangp.wp1.rpkm)      <- c('WT.H9.Basal-3','WT.H9.Basal-7','WT.H9.PMA-4','WT.H9.PMA-8',
+                                    'H9.TRPC1.KO-11','H9.TRPC1.KO-9','H9.TRPC1.PMA-11','H9.TRPC1.PMA-12')
+liangp.wp1.result.1            <- topTable( liangp.wp1.result , 
+                                            coef          = 1,
+                                            number        = Inf, 
+                                            adjust.method = 'BH', 
+                                            sort.by       = 'none') %>%
+                                  cbind(liangp.wp1.rpkm) %>%
+                                  arrange(P.Value)
+
+
+liangp.wp1.result.2            <- topTable( liangp.wp1.result , 
+                                            coef          = 2,
+                                            number        = Inf, 
+                                            adjust.method = 'BH', 
+                                            sort.by       = 'none') %>%
+                                  cbind(liangp.wp1.rpkm) %>%
+                                  arrange(P.Value)
+
+#---
+# 课题2：CIB1基因敲除对于心肌细胞功能及PMA诱导的心肌肥厚中的作用研究
+# 1、WT H9 Basal：#3，#7
+# 2、WT H9 ＋ PMA：#4，#8
+# 3、H9-CIB1-KO Basal：#1，#5
+# 4、H9-CIB1-KO PMA：#2，#6  
+#---
+
+wp2.reload.group               <- factor( c( 'WT.H9.Basal','WT.H9.Basal','WT.H9.PMA','WT.H9.PMA',
+                                            'H9.CIB1.KO','H9.CIB1.KO','H9.CIB1.PMA','H9.CIB1.PMA'), 
+                                          levels = c('WT.H9.Basal','WT.H9.PMA','H9.CIB1.KO','H9.CIB1.PMA'));
+wp2.reload.design              <- model.matrix(~ 0 + wp2.reload.group)
+
+colnames(wp2.reload.design)    <- levels(wp2.reload.group)
+wp2.contrast.matrix            <- makeContrasts( H9.CIB1.KO - H9.CIB1.PMA, WT.H9.Basal - WT.H9.PMA,
+                                                 levels = wp2.reload.design)
+liangp.wp2.result              <- liangp.genes %$% counts[,c(7:10,5,12,2,11)] %>% 
+                                  DGEList(genes = Ann) %>% 
+                                  calcNormFactors() %>% 
+                                  voom(design = wp2.reload.design) %>%
+                                  lmFit(wp2.reload.design) %>% 
+                                  contrasts.fit(wp2.contrast.matrix ) %>%
+                                  eBayes()
+liangp.wp2.rpkm                <- liangp.genes %$% counts[,c(7:10,5,12,2,11)] %>% 
+                                  DGEList(genes = Ann) %>% 
+                                  calcNormFactors() %>% rpkm()
+colnames(liangp.wp2.rpkm )     <- c( 'WT.H9.Basal-3','WT.H9.Basal-7','WT.H9.PMA-4','WT.H9.PMA-8',
+                                     'H9.CIB1.KO-11','H9.CIB1.KO-1','H9.CIB1.PMA-6','H9.CIB1.PMA-2')
+liangp.wp2.result.1            <- topTable( liangp.wp2.result , 
+                                            coef          = 1,
+                                            number        = Inf, 
+                                            adjust.method = 'BH', 
+                                            sort.by       = 'none') %>%
+                                  cbind(liangp.wp2.rpkm) %>%
+                                  arrange(P.Value)
+
+liangp.wp2.result.2            <- topTable( liangp.wp2.result , 
+                                            coef          = 2,
+                                            number        = Inf, 
+                                            adjust.method = 'BH', 
+                                            sort.by       = 'none') %>%
+                                 cbind(liangp.wp2.rpkm) %>%
+                                 arrange(P.Value)
+
+# export the result to two sheets
+#---
+
+setwd('C:\\Users\\Yisong\\Desktop')
+liangp.p1.wb <- createWorkbook()
+liangp.p2.wb <- createWorkbook()
+addWorksheet(liangp.p1.wb, 'H9.TRPC1.KO - WT.H9.Basal')
+addWorksheet(liangp.p1.wb, 'H9.TRPC1.PMA - WT.H9.PMA')
+addWorksheet(liangp.p2.wb, 'H9.CIB1.KO - WT.H9.Basal')
+addWorksheet(liangp.p2.wb, 'WT.H9.PMA - H9.CIB1.PMA')
+
+writeData(liangp.p1.wb, sheet = 1, liangp.wp1.result.1 )
+writeData(liangp.p1.wb, sheet = 2, liangp.wp1.result.2 )
+writeData(liangp.p2.wb, sheet = 1, liangp.wp2.result.1 )
+writeData(liangp.p2.wb, sheet = 2, liangp.wp2.result.2 )
+saveWorkbook(liangp.p1.wb, 'liangp.p1.2017-08-07.xlsx', overwrite = TRUE)
+saveWorkbook(liangp.p2.wb, 'liangp.p2.2017-08-07.xlsx', overwrite = TRUE)
+
+# 1、Basal水平的比较：WT与KO比较
+# 2、PMA水平的比较：WT与KO比较
+# 之后，我们选择在2中的阳性、
+# 但在1中不是阳性的基因/信号通路作为候选基因/信号通路
+# see email from liangp
+# Basal level p > 0.05
+# PMA level   p < 0.05
+# !!!! 
+# contrast.matrix
+# WP1, H9.TRPC1.KO - WT.H9.Basal, H9.TRPC1.PMA - WT.H9.PMA,
+# WP2, H9.CIB1.KO - WT.H9.Basal, H9.CIB1.PMA - WT.H9.PMA,
+#
+#---
+
+p1.df <- inner_join( liangp.wp1.result.1 %>% 
+                     filter(P.Value > 0.05) %>%
+                     filter(SYMBOL != ''),
+                     liangp.wp1.result.2 %>% 
+                     filter(P.Value < 0.05) %>%
+                     filter(SYMBOL != ''),
+                     by = 'SYMBOL')
+
+p2.df <- inner_join( liangp.wp2.result.1 %>% 
+                     filter(P.Value > 0.05) %>%
+                     filter(SYMBOL != ''),
+                     liangp.wp2.result.2 %>% 
+                     filter(P.Value < 0.05) %>%
+                     filter(SYMBOL != ''),
+                     by = 'SYMBOL')
+
+setwd('C:\\Users\\Yisong\\Desktop')
+liangp.wb <- createWorkbook()
+addWorksheet(liangp.wb, 'TRPC1-Basal')
+addWorksheet(liangp.wb, 'CIB1-Basal')
+
+writeData(liangp.wb, sheet = 1, p1.df )
+writeData(liangp.wb, sheet = 2, p2.df )
+saveWorkbook(liangp.wb, 'liangp.2017-08-09.xlsx', overwrite = TRUE)
+
+
+
+# in response to liangp and wangli at
+# 2017-08-14
+# I sent an email to confirm this 
+# contrast.matrix
+# WP1,
+# 1) H9.TRPC1.KO - H9.TRPC1.PMA, 2) WT.H9.Basal - WT.H9.PMA
+# 2) positive, 1) negative
+# WP2,
+# H9.CIB1.KO - H9.CIB1.PMA, WT.H9.Basal - WT.H9.PMA,
+#---
+
+
+
+p1.1.df <- liangp.wp1.result.1 %>% 
+           filter(P.Value < 0.05) %>%
+           filter(abs(logFC) > 0.58) %>%
+           filter(SYMBOL != '')
+
+p1.2.df <- liangp.wp1.result.1 %>% 
+           filter(P.Value < 0.05) %>%
+           filter(abs(logFC) > 0.58) %>%
+           filter(SYMBOL != '')
+
+
+p2.1.df <- liangp.wp2.result.1 %>% 
+           filter(P.Value < 0.05) %>%
+           filter(abs(logFC) > 0.58) %>%
+           filter(SYMBOL != '')
+
+p2.2.df <- liangp.wp2.result.1 %>% 
+           filter(P.Value < 0.05) %>%
+           filter(abs(logFC) > 0.58) %>%
+           filter(SYMBOL != '')
+
+p1.geneID <- inner_join( liangp.wp1.result.1 %>% 
+                         filter(P.Value > 0.05) %>%
+                         filter(abs(logFC) < 0.58) %>%
+                         filter(SYMBOL != ''),
+                         liangp.wp1.result.2 %>% 
+                         filter(P.Value < 0.05) %>%
+                         filter(abs(logFC) > 0.58) %>%
+                         filter(SYMBOL != ''),
+                         by = 'SYMBOL') %>% dplyr::select(GeneID.x) %>%
+                         unlist
+
+p2.geneID <- inner_join( liangp.wp2.result.1 %>% 
+                         filter(P.Value > 0.05) %>%
+                         filter(abs(logFC) < 0.58) %>%
+                         filter(SYMBOL != ''),
+                         liangp.wp2.result.2 %>% 
+                         filter(P.Value < 0.05) %>%
+                         filter(abs(logFC) > 0.58) %>%
+                         filter(SYMBOL != ''),
+                         by = 'SYMBOL') %>% dplyr::select(GeneID.x) %>%
+                         unlist
+
+liangp.p1.kegg.tidy      <- enrichKEGG( p1.geneID, 
+                                        organism = 'human', 
+                                        pvalueCutoff  = 0.05, 
+                                        pAdjustMethod = 'none',
+                                        qvalueCutoff  = 1) %>%
+                           summary() %$%
+                           {data.frame( kegg.pvalue  = -log(pvalue),
+                                        kegg.pathway = Description )}
+liangp.p1.kegg.ggplot   <- liangp.p1.kegg.tidy %>% 
+                           ggplot( aes( x = reorder(kegg.pathway, kegg.pvalue), 
+                                                       y = kegg.pvalue)) + 
+                           geom_bar( stat = 'identity', width = 0.4, 
+                                     position = position_dodge(width = 0.1), size = 20) +
+                           theme(axis.text.x = element_text(angle = 60,hjust = 1, size = 8),
+                                 axis.text.y = element_text(hjust = 1, size = 10)) +
+                           ylab('-log(pvalue)') + 
+                           xlab('liangp.p1.KEGG.ggplot') + 
+                           coord_flip()
+liangp.p1.GO.tidy       <- enrichGO( gene  = p1.geneID,
+                                     OrgDb = org.Hs.eg.db,
+                                     ont   = "CC",
+                                     pAdjustMethod = 'none',
+                                     qvalueCutoff  = 1) %>%
+                            summary() %$%
+                            {data.frame( Golabels  = paste(ID, Description, sep = ' '),
+                                         LogPvalue = - log(pvalue) ) } %>%
+                            ggplot( aes( x = reorder(Golabels, LogPvalue), 
+                                                       y = LogPvalue)) + 
+                            geom_bar( stat = 'identity', width = 0.4, 
+                                     position = position_dodge(width = 0.1), size = 20) +
+                            theme(axis.text.x = element_text(angle = 60,hjust = 1, size = 8),
+                                 axis.text.y = element_text(hjust = 1, size = 10)) +
+                            ylab('-log(pvalue)') + 
+                            xlab('liangp.p1.GO.ggplot2') + 
+                            coord_flip()
+
+# p2 ggplot
+liangp.p2.kegg.tidy      <- enrichKEGG( p2.geneID, 
+                                        organism = 'human', 
+                                        pvalueCutoff  = 0.05, 
+                                        pAdjustMethod = 'none',
+                                        qvalueCutoff  = 1) %>%
+                           summary() %$%
+                           {data.frame( kegg.pvalue  = -log(pvalue),
+                                        kegg.pathway = Description )}
+
+liangp.p2.kegg.ggplot   <- liangp.p2.kegg.tidy %>% 
+                           ggplot( aes( x = reorder(kegg.pathway, kegg.pvalue), 
+                                                       y = kegg.pvalue)) + 
+                           geom_bar( stat = 'identity', width = 0.4, 
+                                     position = position_dodge(width = 0.1), size = 20) +
+                           theme(axis.text.x = element_text(angle = 60,hjust = 1, size = 8),
+                                 axis.text.y = element_text(hjust = 1, size = 10)) +
+                           ylab('-log(pvalue)') + 
+                           xlab('liangp.p2.KEGG.ggplot') + 
+                           coord_flip()
+liangp.p2.GO.tidy       <- enrichGO( gene  = p2.geneID,
+                                     OrgDb = org.Hs.eg.db,
+                                     ont   = "CC",
+                                     pAdjustMethod = 'none',
+                                     qvalueCutoff  = 1) %>%
+                            summary() %$%
+                            {data.frame( Golabels  = paste(ID, Description, sep = ' '),
+                                         LogPvalue = - log(pvalue) ) } %>%
+                            ggplot( aes( x = reorder(Golabels, LogPvalue), 
+                                                       y = LogPvalue)) + 
+                            geom_bar( stat = 'identity', width = 0.4, 
+                                     position = position_dodge(width = 0.1), size = 20) +
+                            theme(axis.text.x = element_text(angle = 60,hjust = 1, size = 8),
+                                 axis.text.y = element_text(hjust = 1, size = 10)) +
+                            ylab('-log(pvalue)') + 
+                            xlab('liangp.p2.GO.ggplot2') + 
+                            coord_flip()
+
+
+liangp.p1.kegg.df        <- enrichKEGG( p1.geneID, 
+                                        organism = 'human', 
+                                        pvalueCutoff  = 0.05, 
+                                        pAdjustMethod = 'none',
+                                        qvalueCutoff  = 1) %>%
+                            summary()
+liangp.p1.GO.df          <- enrichGO( gene  = p1.geneID,
+                                     OrgDb = org.Hs.eg.db,
+                                     ont   = "CC",
+                                     pAdjustMethod = 'none',
+                                     qvalueCutoff  = 1) %>%
+                            summary()
+liangp.p2.kegg.df        <- enrichKEGG( p2.geneID, 
+                                        organism = 'human', 
+                                        pvalueCutoff  = 0.05, 
+                                        pAdjustMethod = 'none',
+                                        qvalueCutoff  = 1) %>%
+                            summary()
+liangp.p2.GO.df          <- enrichGO( gene  = p2.geneID,
+                                     OrgDb = org.Hs.eg.db,
+                                     ont   = "CC",
+                                     pAdjustMethod = 'none',
+                                     qvalueCutoff  = 1) %>%
+                            summary()
+
+setwd('C:\\Users\\Yisong\\Desktop')
+liangp.wb <- createWorkbook()
+addWorksheet(liangp.wb, 'H9.TRPC1.KO - H9.TRPC1.PMA')
+addWorksheet(liangp.wb, 'WT.H9.Basal - WT.H9.PMA-I')
+
+addWorksheet(liangp.wb, 'H9.CIB1.KO - H9.CIB1.PMA')
+addWorksheet(liangp.wb, 'WT.H9.Basal - WT.H9.PMA-II')
+
+
+addWorksheet(liangp.wb, 'p1.kegg')
+addWorksheet(liangp.wb, 'p1.GO')
+addWorksheet(liangp.wb, 'p2.kegg')
+addWorksheet(liangp.wb, 'p2.GO')
+
+writeData(liangp.wb, sheet = 1, p1.1.df )
+writeData(liangp.wb, sheet = 2, p1.2.df )
+writeData(liangp.wb, sheet = 3, p2.1.df )
+writeData(liangp.wb, sheet = 4, p2.2.df )
+writeData(liangp.wb, sheet = 5, liangp.p1.kegg.df )
+writeData(liangp.wb, sheet = 6, liangp.p1.GO.df )
+writeData(liangp.wb, sheet = 7, liangp.p2.kegg.df )
+writeData(liangp.wb, sheet = 8, liangp.p2.GO.df )
+saveWorkbook(liangp.wb, 'liangp.2017-08-15.xlsx', overwrite = TRUE)
+
+
+# full samples normliaztion and vsn
+#---
+whole.samples.exprs <- liangp.genes %$% counts %>% 
+                       DGEList(genes = Ann) %>% 
+                       calcNormFactors() %>% rpkm()
+samples.mean.rlog  <- cbind( WT.H9.Basal  = apply(whole.samples.exprs[,7:8], 1, mean),
+                             WT.H9.PMA    = apply(whole.samples.exprs[,9:10], 1, mean),
+                             H9.TRPC1.PMA = apply(whole.samples.exprs[,5:6], 1, mean),
+                             H9.CIB1.PMA  = apply(whole.samples.exprs[,c(2,11)], 1, mean),
+                             H9.CIB1.KO   = apply(whole.samples.exprs[,c(1,12)], 1, mean),
+                             H9.TRPC1.KO  = apply(whole.samples.exprs[,3:4], 1, mean) ) %>%
+                      apply(c(1,2), as.integer) %>% rlog()
+(cardio.ann.df)
+
+cardiotropy.data <- match(cardio.ann.df$HumanSymbol, Ann$SYMBOL)  %>% 
+                    {samples.mean.rlog[.,]} 
+rownames(cardiotropy.data) <- cardio.ann.df$HumanSymbol
+cardiotropy.data           <- na.omit(cardiotropy.data)
+sd.filter.cardiotrophy     <- apply(cardiotropy.data, 1, sd)
+
+sd.filter.whole            <- apply(samples.mean.rlog, 1, sd)
+
+liangp.final.4.groups      <- colnames(cardiotropy.data[,c(1,2,3,6)])
+liangp.final.4.pca         <- cardiotropy.data[,c(1,2,3,6)] %>%
+                              t() %>% prcomp 
+
+plot( liangp.final.4.pca$x[,c(1,2)], 
+      xlim = c(-5,7), ylim = c(-3,3),
+      pch = 16, col = 'blue')
+text( liangp.final.4.pca$x[,1], liangp.final.4.pca$x[,2], 
+      labels = liangp.final.4.groups, 
+      cex    = 0.5, pos = 3, adj = c(0,1))
+
+
+
+
+color.bar <- colorRampPalette(c("blue4", "white", "springgreen4"))(10) 
+trpc1.pheatmap <- cardiotropy.data[,-c(4:5)]  %>% cor(., method = 'spearman') %>%
+                  pheatmap( cluster_rows = T, cluster_cols = T,
+                            color = c(color.bar), scale = 'none', fontsize_col = 8, 
+                            fontsize_row = 8, cellwidth = 30, cellheight = 30,
+                            labels_row = colnames(cardiotropy.data)[-c(4:5)], 
+                            labels_col = colnames(cardiotropy.data)[-c(4:5)],
+                            display_numbers = TRUE, number_color = 'orange',
+                            fontsize_number = 10)
+cib1.pheatmap <- cardiotropy.data[,c(1,2,4,5)]  %>% cor(., method = 'spearman') %>%
+                  pheatmap( cluster_rows = T, cluster_cols = T,
+                            color = c(color.bar), scale = 'none', fontsize_col = 8, 
+                            fontsize_row = 8, cellwidth = 30, cellheight = 30,
+                            labels_row = colnames(cardiotropy.data)[c(1,2,4,5)], 
+                            labels_col = colnames(cardiotropy.data)[c(1,2,4,5)],
+                            display_numbers = TRUE, number_color = 'orange',
+                            fontsize_number = 10)
+
+wp.kegg.func    <- . %>% 
+                  filter(P.Value < 0.05 & abs(logFC) > 0.58) %>%
+                  dplyr::select(GeneID) %>% unlist %>%
+                  enrichKEGG( organism = "hsa")
+dotplot.func    <- .%>% dotplot( x = "count", showCategory = 20, colorBy = "qvalue")
+wp.kegg.plots   <- map( list( liangp.wp1.result.1, liangp.wp1.result.2, 
+                              liangp.wp2.result.1, liangp.wp2.result.2), wp.kegg.func) %>%
+                   map(dotplot.func) %>% {plot_grid( plotlist = .[1:3], labels = c('A','B','C'),
+                                                    ncol = 2, nrow = 2)}
+
+# GO analysis include
+# BP
+# CC
+# MF
+#---
+wp.GO.func      <- . %>% 
+                   filter(P.Value < 0.05 & abs(logFC) > 0.58) %>%
+                   dplyr::select(GeneID) %>% unlist %>%
+                   enrichGO( OrgDb = 'org.Hs.eg.db', ont = "CC")
+dotplot.func   <- . %>% dotplot( showCategory = 10)
+wp.GO.plots    <- map( list( liangp.wp1.result.1, liangp.wp1.result.2, 
+                             liangp.wp2.result.1, liangp.wp2.result.2), wp.GO.func) %>%
+                  map(dotplot.func) %>% arrangeGrob(grobs = ., nrow = 2, ncol = 2) %>%
+                  grid.arrange()
+                 
+ggdraw() + draw_plot(wp.GO.plots[[1]], x = 0, y = 0.5, width = .5, height = .5) +
+           draw_plot(wp.GO.plots[[2]], x = .5, y = .5, width = .5, height = .5) +
+           draw_plot(wp.GO.plots[[3]], x = 0, y = 0, width = .5, height = .5)  +
+           draw_plot(wp.GO.plots[[4]], x = .5, y = 0, width = .5, height = .5) 
+
+#---
+# heatmap reload
+# 
+
+select.names.func <- . %>% filter(P.Value < 0.05 & logFC > 0.58) %>% dplyr::select(SYMBOL)
+all.gene.names    <- list( liangp.wp1.result.1, liangp.wp1.result.2, 
+                           liangp.wp2.result.1, liangp.wp2.result.1) %>%
+                     map(select.names.func) %>% unlist %>% na.omit
+dge.samples.rlog  <- match(all.gene.names, Ann$SYMBOL) %>% samples.mean.rlog[.,]
+dge.samples.sd    <- apply(dge.samples.rlog, 1, sd)
+dge.samples.rlog  <- dge.samples.rlog[dge.samples.sd > 0.3,]
+
+heatmap.2( dge.samples.rlog , col = greenred(75),scale  = 'row', 
+						     Rowv = TRUE,Colv = FALSE, density.info = 'none',key = TRUE, trace = 'none', 
+						     cexCol = 1.5,distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
+						     hclustfun = function(d) hclust(d, method = 'complete'),
+						     dendrogram = 'row',margins = c(12,9),labRow = NA, srtCol = 30)
+
+
+pheatmap( dge.samples.rlog, cluster_rows = T, cluster_cols = F, 
+          scale = 'row', clustering_distance_rows = 'correlation' )
+
+
+
+
+
+
+
+# {plot_grid( plotlist = ., 
+#                            labels   = c('A','B','C','D'),
+#                            ncol     = 2, nrow = 2)}
+
+ 
+# alternative way, successfully
+# arrangeGrob(grobs = wp.GO.plots, nrow = 4, ncol = 1 ) %>% grid.arrange()
+#---
+
+#---
+# depreacteed, 
+# may need register first, otherwise throw out the errors
+#
+#david.url <- "https://david.ncifcrf.gov/webservice/services/DAVIDWebService.DAVIDWebServiceHttpSoap12Endpoint/"
+#david     <- DAVIDWebService$new(email = "zhenyisong@fuwaihospital.org", url = david.url)
+#setAnnotationCategories(david, 'KEGG_PATHWAY')
+#liangp.wp1.result.1 %>% 
+#filter(P.Value < 0.05 & abs(logFC) > 0.58) %>%
+#dplyr::select(GeneID) %>% unlist %>%
+#addList(david, .,
+#idType="ENTREZ_GENE_ID",
+#listName = "clusterProfiler", listType="Gene")
+#
+
+#---
+# sample-gene correlation analysis
+#--
 save.image('liangp.Rdata')
 quit('no')
