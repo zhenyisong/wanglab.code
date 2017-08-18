@@ -1,5 +1,6 @@
 # @author Yisong Zhen
-# @since 2017-06-20
+# @since   2017-06-20
+# @update  2017-08-17
 # @parent 
 #    see fuwai: vsmc_sample_cor.R
 #    see fuwai:   microarry2Exprs.R
@@ -96,6 +97,9 @@ map2(base.strings, reference.sets, buildindex)
 # GSE35664 
 # SE model
 # Rat
+# !!!
+# this is small RNA-seq results, not mRNA-seq
+# data discarded in the following analysis!
 #---
 
 "
@@ -377,8 +381,8 @@ GSE65354.files       <- list.files( path = GSE65354.rawdata, pattern = 'SRR.*.fa
                                     all.files = FALSE, full.names  = TRUE, 
                                     recursive = FALSE, ignore.case = FALSE, include.dirs = F)
 
-GSE65354.1.files         <- GSE44461.files[grep('_1',GSE65354.files)]
-GSE65354.2.files         <- GSE44461.files[grep('_2',GSE65354.files)]
+GSE65354.1.files         <- GSE65354.files[grep('_1',GSE65354.files)]
+GSE65354.2.files         <- GSE65354.files[grep('_2',GSE65354.files)]
 
 GSE65354.output.filenames <- basename(GSE65354.1.files) %>% sub(pattern = '_1.fastq', replacement = '') %>%
                              paste0(GSE65354.output.dir,'/', . ,'.bam')
@@ -410,8 +414,7 @@ GSE65354.genes  <- featureCounts( GSE65354.output.filenames,
                                   annot.inbuilt          = 'hg38', 
                                   GTF.featureType        = 'exon',
                                   GTF.attrType           = 'gene_id',
-                                  allowMultiOverlap      = TRUE)
-
+                                  allowMultiOverlap      = TRUE
 
 
 # wangli data, xinli,
@@ -833,10 +836,10 @@ GSE21403.data      <- cbind(GSE21403.symbols, GSE21403.exprs )
 
 
 
-# now start the correlation analysis
-#---
-GSE29955_1
 
+#---
+# now parse the data
+#----
 
 #---
 # GSE35664 SRP010854 
@@ -849,7 +852,7 @@ GSE29955_1
 #---
 rnaseq.list      <- list( GSE35664.genes, GSE38056.genes, GSE44461.genes,
                           GSE51878.genes, GSE60642.genes, GSE60641.genes,
-                          GSE65354.genes )
+                          GSE65354.genes, xinli.genes )
 
 annot.list       <- map(rnaseq.list, . %$% annotation)
 rnaseq.rlog.func <- function(genes,annot) {
@@ -861,6 +864,95 @@ rnaseq.rlog.func <- function(genes,annot) {
 
 rnaseq.matrix.list <- map2(rnaseq.list, annot.list, rnaseq.rlog.func)
 
+# RNA-seq data analysis
+# class(rnaseq.matrix.list[[1]])
+# colnames(rnaseq.matrix.list[[1]])
+# [1] "matrix"
+
+GSE35664.1 <- rnaseq.matrix.list[[1]][,2] - rnaseq.matrix.list[[1]][,1]
+GSE35664.2 <- rnaseq.matrix.list[[1]][,3] - rnaseq.matrix.list[[1]][,1]
+GSE35664.3 <- rnaseq.matrix.list[[1]][,4] - rnaseq.matrix.list[[1]][,1]
+
+names(GSE35664.1) <- GSE35664.genes$annotation$GeneID %>% 
+                     make.names(unique = T) %>% toupper()
+names(GSE35664.2) <- GSE35664.genes$annotation$GeneID %>% 
+                     make.names(unique = T) %>% toupper()
+names(GSE35664.3) <- GSE35664.genes$annotation$GeneID %>% 
+                     make.names(unique = T) %>% toupper()
+
+GSE38056   <- rnaseq.matrix.list[[2]][,2] - rnaseq.matrix.list[[2]][,1]
+names(GSE38056) <- GSE38056.genes$annotation$GeneID %>% 
+                   make.names(unique = T) %>% toupper()
+
+GSE44461   <- apply(rnaseq.matrix.list[[3]][,4:6], 1, median) - 
+              apply(rnaseq.matrix.list[[3]][,1:3], 1, median) 
+names(GSE44461) <- mapIds( org.Hs.eg.db, keys = as.character(GSE44461.genes$annotation$GeneID), 
+                           column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                   unlist %>%
+                   make.names(unique = T) %>% toupper()
+GSE51878.1 <- apply(rnaseq.matrix.list[[4]][,1:3], 1, median) - 
+              apply(rnaseq.matrix.list[[4]][,4:6], 1, median) 
+GSE51878.2 <- apply(rnaseq.matrix.list[[4]][,7:9], 1, median) - 
+              apply(rnaseq.matrix.list[[4]][,4:6], 1, median) 
+
+names(GSE51878.1) <- mapIds( org.Hs.eg.db, keys = as.character(GSE51878.genes$annotation$GeneID), 
+                           column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                   unlist %>%
+                   make.names(unique = T) %>% toupper()
+names(GSE51878.2) <- mapIds( org.Hs.eg.db, keys = as.character(GSE51878.genes$annotation$GeneID), 
+                           column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                   unlist %>%
+                   make.names(unique = T) %>% toupper()
+
+GSE60642.1 <- apply(rnaseq.matrix.list[[5]][,3:4], 1, median) - 
+              apply(rnaseq.matrix.list[[5]][,5:6], 1, median) 
+GSE60642.2 <- apply(rnaseq.matrix.list[[5]][,1:2], 1, median) - 
+              apply(rnaseq.matrix.list[[5]][,5:6], 1, median) 
+
+names(GSE60642.1) <- mapIds( org.Mm.eg.db, keys = as.character(GSE60642.genes$annotation$GeneID), 
+                           column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                   unlist %>%
+                   make.names(unique = T) %>% toupper()
+names(GSE60642.2) <- mapIds( org.Mm.eg.db, keys = as.character(GSE60642.genes$annotation$GeneID), 
+                           column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                   unlist %>%
+                   make.names(unique = T) %>% toupper()
+
+
+GSE60641   <- apply(rnaseq.matrix.list[[6]][,4:6], 1, median) - 
+              apply(rnaseq.matrix.list[[6]][,1:3], 1, median)
+
+names(GSE60641) <- mapIds( org.Mm.eg.db, keys = as.character(GSE60641.genes$annotation$GeneID), 
+                           column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                   unlist %>%
+                   make.names(unique = T) %>% toupper()
+
+GSE65354.1 <- rnaseq.matrix.list[[7]][,2] - rnaseq.matrix.list[[7]][,4]
+GSE65354.2 <- rnaseq.matrix.list[[7]][,1] - rnaseq.matrix.list[[7]][,3]
+
+names(GSE65354.1) <- mapIds( org.Hs.eg.db, keys = as.character(GSE65354.genes$annotation$GeneID), 
+                           column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                   unlist %>%
+                   make.names(unique = T) %>% toupper()
+
+names(GSE65354.2) <- mapIds( org.Hs.eg.db, keys = as.character(GSE65354.genes$annotation$GeneID), 
+                           column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                   unlist %>%
+                   make.names(unique = T) %>% toupper()
+
+xinli.FBS   <- apply(rnaseq.matrix.list[[8]][,3:4], 1, median) - 
+               apply(rnaseq.matrix.list[[8]][,1:2], 1, median)
+xinli.Thoc5 <- apply(rnaseq.matrix.list[[8]][,7:8], 1, median) - 
+               apply(rnaseq.matrix.list[[8]][,5:6], 1, median)
+
+names(xinli.FBS) <- mapIds( org.Mm.eg.db, keys = as.character(xinli.genes$annotation$GeneID), 
+                           column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                   unlist %>%
+                   make.names(unique = T) %>% toupper()
+names(xinli.Thoc5) <- mapIds( org.Mm.eg.db, keys = as.character(xinli.genes$annotation$GeneID), 
+                           column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                   unlist %>%
+                   make.names(unique = T) %>% toupper()
 
 # microarray data analysis
 #---
@@ -871,306 +963,441 @@ GSE29955.1 <- as.matrix(GSE29955.data[,2:ncol(GSE29955.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(4:6)], 1, median) - 
                apply(.[,c(1:3)], 1, median))}
+names(GSE29955.1) <- GSE29955.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()
 GSE29955.2 <- as.matrix(GSE29955.data[,2:ncol(GSE29955.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(10:12)], 1, median) - 
                apply(.[,c(7:9)], 1, median))}
-
+names(GSE29955.2) <- GSE29955.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()
 GSE29955.3 <- as.matrix(GSE29955.data[,2:ncol(GSE29955.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(16:18)], 1, median) - 
                apply(.[,c(13:15)], 1, median))}
+names(GSE29955.3) <- GSE29955.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()
 
 GSE36487.1 <- as.matrix(GSE36487.data[,2:ncol(GSE36487.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,2], 1, median) - 
-               apply(.[,1], 1, median))}
+              {.[,2] - .[,1]}
+
+names(GSE36487.1) <- GSE36487.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()
+
 GSE36487.2 <- as.matrix(GSE36487.data[,2:ncol(GSE36487.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,3], 1, median) - 
-               apply(.[,1], 1, median))}
+              {.[,3] - .[,1]}
+names(GSE36487.2) <- GSE36487.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()
 GSE12261.1 <- as.matrix(GSE12261.data[,2:ncol(GSE12261.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,4:6], 1, median) - 
                apply(.[,1:3], 1, median))}
+names(GSE12261.1) <- GSE12261.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()
 GSE12261.2 <- as.matrix(GSE12261.data[,2:ncol(GSE12261.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,10:12], 1, median) - 
                apply(.[,7:9], 1, median))}
+names(GSE12261.2) <- GSE12261.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()
 GSE13791.1 <- as.matrix(GSE13791.data[,2:ncol(GSE13791.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,17:18], 1, median) - 
                 apply(.[,19:20], 1, median))}
+names(GSE13791.1) <- GSE13791.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()
 GSE13791.2 <- as.matrix(GSE13791.data[,2:ncol(GSE13791.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,21:23], 1, median) - 
                 apply(.[,24:26], 1, median))} 
+names(GSE13791.2) <- GSE13791.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()
 
 GSE11367   <- as.matrix(GSE11367.data[,2:ncol(GSE11367.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(2,4,6)], 1, median) - 
-                apply(.[,c(1,3,5)], 1, median))}  
+                apply(.[,c(1,3,5)], 1, median))} 
+names(GSE11367) <- GSE11367.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 
 GSE47744.1 <- as.matrix(GSE47744.data[,2:ncol(GSE47744.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(3,4)], 1, median) - 
-                apply(.[,c(1,2)], 1, median))}  
+                apply(.[,c(1,2)], 1, median))}
+names(GSE47744.1) <- GSE47744.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()  
 GSE47744.2 <- as.matrix(GSE47744.data[,2:ncol(GSE47744.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(7,8)], 1, median) - 
-                apply(.[,c(5,6)], 1, median))}  
+                apply(.[,c(5,6)], 1, median))} 
+names(GSE47744.2) <- GSE47744.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()  
 GSE47744.3 <- as.matrix(GSE47744.data[,2:ncol(GSE47744.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(9,10)], 1, median) - 
-                apply(.[,c(5,6)], 1, median))}  
+                apply(.[,c(5,6)], 1, median))} 
+names(GSE47744.3) <- GSE47744.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()  
 GSE42813.1 <- as.matrix(GSE42813.data[,2:ncol(GSE42813.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(1,2)], 1, median) - 
                 apply(.[,c(3,4)], 1, median))} 
+names(GSE42813.1) <- GSE42813.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
  
 GSE42813.2 <- as.matrix(GSE42813.data[,2:ncol(GSE42813.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(5,6)], 1, median) - 
-                apply(.[,c(3,4)], 1, median))} 
+                apply(.[,c(3,4)], 1, median))}
+names(GSE42813.2) <- GSE42813.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()  
 GSE60447.1 <- as.matrix(GSE60447.data[,2:ncol(GSE60447.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(1,2)], 1, median) - 
                 apply(.[,c(3,4,5)], 1, median))} 
+names(GSE60447.1) <- GSE60447.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE60447.2 <- as.matrix(GSE60447.data[,2:ncol(GSE60447.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(9:11)], 1, median) - 
                 apply(.[,c(6,7,8)], 1, median))} 
+names(GSE60447.2) <- GSE60447.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE19441   <- as.matrix(GSE19441.data[,2:ncol(GSE19441.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(2,4,6)], 1, median) - 
                 apply(.[,c(1,3,5)], 1, median))} 
+names(GSE19441) <- GSE19441.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE56819.1 <- as.matrix(GSE56819.data[,2:ncol(GSE56819.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(4,5,6)], 1, median) - 
                 apply(.[,c(1,2,3)], 1, median))}
+names(GSE56819.1) <- GSE56819.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE56819.2 <- as.matrix(GSE56819.data[,2:ncol(GSE56819.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(7,8,9)], 1, median) - 
                 apply(.[,c(1,2,3)], 1, median))} 
+names(GSE56819.2) <- GSE56819.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 
 GSE17556.1 <- as.matrix(GSE17556.data[,2:ncol(GSE17556.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(4,5,6)], 1, median) - 
                 apply(.[,c(1,2,3)], 1, median))} 
+names(GSE17556.1) <- GSE17556.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE17556.2 <- as.matrix(GSE17556.data[,2:ncol(GSE17556.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(7,8,9)], 1, median) - 
                 apply(.[,c(1,2,3)], 1, median))} 
+names(GSE17556.2) <- GSE17556.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE17556.3 <- as.matrix(GSE17556.data[,2:ncol(GSE17556.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(13,14,15)], 1, median) - 
                 apply(.[,c(10,11,12)], 1, median))} 
+names(GSE17556.3) <- GSE17556.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE17556.4 <- as.matrix(GSE17556.data[,2:ncol(GSE17556.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(13,14,15)], 1, median) - 
                 apply(.[,c(16,17,18)], 1, median))} 
+names(GSE17556.4) <- GSE17556.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE63425.1 <- as.matrix(GSE63425.data[,2:ncol(GSE63425.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(1,2,8,12)], 1, median) - 
                 apply(.[,c(3,4,7,11)], 1, median))} 
+names(GSE63425.1) <- GSE63425.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE63425.2 <- as.matrix(GSE63425.data[,2:ncol(GSE63425.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(5,6,9,10)], 1, median) - 
                 apply(.[,c(3,4,7,11)], 1, median))} 
-
+names(GSE63425.2) <- GSE63425.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE68021.1 <- as.matrix(GSE68021.data[,2:ncol(GSE68021.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(4,5,6)], 1, median) - 
                 apply(.[,c(1,2,3)], 1, median))} 
+names(GSE68021.1) <- GSE68021.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 
 GSE68021.2 <- as.matrix(GSE68021.data[,2:ncol(GSE68021.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(7,8,9)], 1, median) - 
                 apply(.[,c(1,2,3)], 1, median))} 
+names(GSE68021.2) <- GSE68021.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE68021.3 <- as.matrix(GSE68021.data[,2:ncol(GSE68021.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(10,11,12)], 1, median) - 
                 apply(.[,c(1,2,3)], 1, median))} 
+names(GSE68021.3) <- GSE68021.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE68021.4 <- as.matrix(GSE68021.data[,2:ncol(GSE68021.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(13,14,15)], 1, median) - 
                 apply(.[,c(1,2,3)], 1, median))} 
+names(GSE68021.4) <- GSE68021.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE68021.5 <- as.matrix(GSE68021.data[,2:ncol(GSE68021.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(16,17,18)], 1, median) - 
                 apply(.[,c(1,2,3)], 1, median))} 
+names(GSE68021.5) <- GSE68021.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE68021.6 <- as.matrix(GSE68021.data[,2:ncol(GSE68021.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(19,20,21)], 1, median) - 
                 apply(.[,c(1,2,3)], 1, median))} 
+names(GSE68021.6) <- GSE68021.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE50251  <- as.matrix(GSE50251.data[,2:ncol(GSE50251.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(1,2,3)], 1, median) - 
                 apply(.[,c(4,5,6)], 1, median))} 
+names(GSE50251) <- GSE50251.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE66538  <- as.matrix(GSE66538.data[,2:ncol(GSE66538.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,c(5,6,7,8)], 1, median) - 
                 apply(.[,c(1,2,3,4)], 1, median))} 
+names(GSE66538) <- GSE66538.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE66280  <- as.matrix(GSE66280.data[,2:ncol(GSE66280.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,1:6], 1, median) - 
                 apply(.[,7:12], 1, median))} 
+names(GSE66280) <- GSE66280.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE15713  <- as.matrix(GSE15713.data[,2:ncol(GSE15713.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,1], 1, median) - 
-                apply(.[,2], 1, median))} 
+              {.[,1] - .[,2]} 
+names(GSE15713) <- GSE15713.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE66624  <- as.matrix(GSE66624.data[,2:ncol(GSE66624.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
               {(apply(.[,11:12], 1, median) - 
                 apply(.[,5:6], 1, median))} 
+names(GSE66624) <- GSE66624.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 
 GSE13594  <- as.matrix(GSE13594.data[,2:ncol(GSE13594.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,3:4], 1, median))} - 
-                apply(.[,1:2], 1, median))} 
+              {(apply(.[,3:4], 1, median) - 
+                apply(.[,1:2], 1, median))}
+names(GSE13594) <- GSE13594.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()  
 GSE19106  <- as.matrix(GSE19106.data[,2:ncol(GSE19106.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,3:4], 1, median))} - 
+              {(apply(.[,3:4], 1, median) - 
                 apply(.[,1:2], 1, median))} 
+names(GSE19106) <- GSE19106.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE21573.1 <- as.matrix(GSE21573.data[,2:ncol(GSE21573.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,3:4], 1, median))} - 
+              {(apply(.[,3:4], 1, median) - 
                 apply(.[,1:2], 1, median))} 
+names(GSE21573.1) <- GSE21573.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE21573.2 <- as.matrix(GSE21573.data[,2:ncol(GSE21573.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,5:6], 1, median))} - 
+              {(apply(.[,5:6], 1, median) - 
                 apply(.[,1:2], 1, median))} 
+names(GSE21573.2) <- GSE21573.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE21573.3 <- as.matrix(GSE21573.data[,2:ncol(GSE21573.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,7:8], 1, median))} - 
+              {(apply(.[,7:8], 1, median) - 
                 apply(.[,1:2], 1, median))} 
+names(GSE21573.3) <- GSE21573.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE21573.4<- as.matrix(GSE21573.data[,2:ncol(GSE21573.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,9:10], 1, median))} - 
+              {(apply(.[,9:10], 1, median) - 
                 apply(.[,1:2], 1, median))} 
+names(GSE21573.4) <- GSE21573.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE31080.1  <- as.matrix(GSE31080.data[,2:ncol(GSE31080.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,2], 1, median))} - 
-                apply(.[,1], 1, median))} 
+              {.[,2] - .[,1]} 
+names(GSE31080.1) <- GSE31080.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE31080.2  <- as.matrix(GSE31080.data[,2:ncol(GSE31080.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,3], 1, median))} - 
-                apply(.[,4], 1, median))} 
+              {.[,3] - .[,4]}
+names(GSE31080.2) <- GSE31080.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper()  
 GSE15841.1  <- as.matrix(GSE15841.data[,2:ncol(GSE15841.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,3:4], 1, median))} - 
+              {(apply(.[,3:4], 1, median) - 
                 apply(.[,1:2], 1, median))} 
+names(GSE15841.1) <- GSE15841.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE15841.2  <- as.matrix(GSE15841.data[,2:ncol(GSE15841.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,5:6], 1, median))} - 
+              {(apply(.[,5:6], 1, median) - 
                 apply(.[,1:2], 1, median))} 
+names(GSE15841.2) <- GSE15841.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE15841.3  <- as.matrix(GSE15841.data[,2:ncol(GSE15841.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,9:10], 1, median))} - 
+              {(apply(.[,9:10], 1, median) - 
                 apply(.[,7:8], 1, median))} 
+names(GSE15841.3) <- GSE15841.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE15841.4  <- as.matrix(GSE15841.data[,2:ncol(GSE15841.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,11:12], 1, median))} - 
+              {(apply(.[,11:12], 1, median) - 
                 apply(.[,7:8], 1, median))} 
+names(GSE15841.4) <- GSE15841.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE19909    <- as.matrix(GSE19909.data[,2:ncol(GSE19909.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,4:6], 1, median))} - 
+              {(apply(.[,4:6], 1, median) - 
                 apply(.[,1:3], 1, median))} 
+names(GSE19909) <- GSE19909.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
 GSE21403   <- as.matrix(GSE21403.data[,2:ncol(GSE21403.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {(apply(.[,3:4], 1, median))} - 
+              {(apply(.[,3:4], 1, median) - 
                 apply(.[,1:2], 1, median))} 
+names(GSE21403) <- GSE21403.data[,1] %>% unlist %>%
+                     make.names(unique = T) %>%
+                     toupper() 
+
+
+# I discarded the GSE35664.1~3
+# this is small RNA results
+# GSE38056, lncRNA RNA-seq results
+# GSE51878, lncRNA
+# GSE65354, lncRNA? not sure
+# 
+#---
+
+# rna.seq.data.list    <- list( GSE35664.1, GSE35664.2, GSE35664.3, GSE38056,
+#                               GSE44461,   GSE51878.1, GSE51878.2, GSE60642.1,
+#                               GSE60642.2, GSE60641,   GSE65354.1, GSE65354.2,
+#                               xinli.FBS,  xinli.Thoc5 )
+
+
+rna.seq.data.list    <- list( GSE38056,   GSE44461,   GSE51878.1, GSE51878.2, 
+                              GSE60642.1, GSE60642.2, GSE60641,   GSE65354.1,
+                              xinli.FBS,  xinli.Thoc5 )
+
+names.func <- . %>% {names(.)[abs(.) > 0.58]}
+
+rnaseq.common.names <- intersect( names(GSE38056), names(GSE38056) )%>%
+                       intersect( names(GSE51878.1) ) %>%
+                       intersect( names(GSE60642.1) ) %>%
+                       intersect( names(GSE60641))    %>%
+                       intersect( names(GSE65354.1) ) %>%
+                       intersect( names(xinli.FBS) )
+rnaseq.names <- map(rna.seq.data.list, names.func) %>%
+                unlist() %>% unique()
+microarray.data.list <- list( GSE29955.1, GSE29955.2, GSE29955.3, GSE36487.1,        
+                              GSE36487.2, GSE12261.1, GSE12261.2, GSE13791.1,
+                              GSE13791.2, GSE11367,   GSE47744.1, GSE47744.2,
+                              GSE47744.3, GSE42813.1, GSE42813.2, GSE60447.1,
+                              GSE60447.2, GSE19441,   GSE56819.1, GSE56819.2,
+                              GSE17556.1, GSE17556.2, GSE17556.3, GSE17556.4,
+                              GSE63425.1, GSE63425.2, GSE68021.1, GSE68021.2,
+                              GSE68021.3, GSE68021.4, GSE68021.5, GSE68021.6,
+                              GSE50251,   GSE66538,   GSE66280,   GSE15713,
+                              GSE66624,   GSE13594,   GSE19106,   GSE21573.1,
+                              GSE21573.2, GSE21573.3, GSE21573.4, GSE31080.1,
+                              GSE31080.2, GSE15841.1, GSE15841.2, GSE15841.3,
+                              GSE15841.4, GSE19909,   GSE21403)
+microarray.common.names <- intersect( names(GSE29955.1), names(GSE36487.1) ) %>%
+                           intersect( names(GSE12261.1) )  %>%
+                           intersect( names(GSE13791.1) )  %>%
+                           intersect( names(GSE11367)   )  %>%
+                           intersect( names(GSE47744.1) )  %>%
+                           intersect( names(GSE42813.1) )  %>%
+                           intersect( names(GSE60447.1) )  %>%
+                           intersect( names(GSE19441)   )  %>%
+                           intersect( names(GSE56819.1) )  %>%
+                           intersect( names(GSE17556.1) )  %>%
+                           intersect( names(GSE63425.1) )  %>%
+                           intersect( names(GSE68021.1) )  %>%
+                           intersect( names(GSE50251)   )  %>%
+                           intersect( names(GSE66538)   )  %>%
+                           intersect( names(GSE66280)   )  %>%
+                           intersect( names(GSE15713)   )  %>%
+                           intersect( names(GSE66624)   )  %>%
+                           intersect( names(GSE13594)   )  %>%
+                           intersect(  names(GSE19106)  )  %>%
+                           intersect( names(GSE21573.1) )  %>%
+                           intersect( names(GSE31080.1) )  %>%
+                           intersect( names(GSE15841.1) )  %>%
+                           intersect( names(GSE19909)   )  %>%   
+                           intersect( names(GSE21403) )
+microarray.names <- map(microarray.data.list, names.func) %>% 
+                    unlist() %>%
+                    unique() %>%
+                    {.[!grepl('NA\\.', .)]}
+
+common.names      <- intersect(rnaseq.common.names, microarray.common.names)
+correlation.names <- union(microarray.names, rnaseq.names) %>% 
+                     intersect(common.names) %>% unique()
 
 
 
 setwd(Rdata.output.dir)
 save.image('xinli.sampleCorrelation.Rdata')
 quit('no')
-
-
-
-
-
-
-lfc.cutoff <- 0.58
-# this code is partially extracted from 
-# multiple.xinli.R
-#---
-gene         <- gene.mouse
-gene.counts  <- gene$counts[,12:17]
-gene.ids     <- gene$annotation$GeneID
-
-
-columns     <- c("ENTREZID","SYMBOL","MGI","GENENAME");
-GeneInfo    <- select( org.Mm.eg.db, keys= as.character(gene.ids), 
-                   keytype = "ENTREZID", columns = columns);
-m           <- match(gene$annotation$GeneID, GeneInfo$ENTREZID);
-Ann         <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
-                          GeneInfo[m, c("SYMBOL", "MGI","GENENAME")]);
-
-Ann$Chr     <- unlist( lapply(strsplit(Ann$Chr, ";"), 
-                    function(x) paste(unique(x), collapse = "|")))
-Ann$Chr     <- gsub("chr", "", Ann$Chr)
-
-
-gene.exprs.772   <- gene.counts[,c(1:4)] %>% DGEList(genes = Ann) %>% calcNormFactors
-design           <- model.matrix(~ 0 + groups + cell.lines);
-colnames(design) <- c('Control','Thoc5','Batch')
-contrast.matrix  <- makeContrasts(Thoc5 - Control, levels = design)
-
-gene.result.772  <- gene.exprs.772 %>% voom(design = design) %>% lmFit() %>%
-                    contrasts.fit(contrast.matrix) %>% 
-                    eBayes() %>%
-                    topTable(  number = Inf)
-# deprecated
-#gene.names.xinli <- gene.result.772 %$% SYMBOL %>% na.omit %>% toupper
-#
-sample.info     <- data.frame( treat  = c('Control','Control','FBS','FBS') )
-xinli.dds       <- gene.exprs.772 %$% t(t(counts) * samples$norm.factors) %>% 
-                   apply(2, as.integer) %>% DESeqDataSetFromMatrix(colData   = sample.info, design = ~ treat) %>%
-                   varianceStabilizingTransformation %>%
-                   assay
-xinli.log       <- gene.exprs.772 %$% t(t(counts) * samples$norm.factors) %>% 
-                   apply(2, as.integer) %>% add(1) %>% log
-
-xinli.data.filter      <- (apply(xinli.log[,1:2], 1, median) - apply(xinli.log[,3:4], 1, median))
-xinli.names            <- Ann %$% SYMBOL %>% subset(abs(xinli.data.filter) > lfc.cutoff) %>%
-                          na.omit %>% toupper
-
-RNA.seq.commonnames.xinli   <- xinli.names %>% union(GSE35664_1.name) %>% union(GSE35664_2.name) %>%
-                               union(GSE35664_3.name) %>% union(GSE38056.name) %>% union(GSE44461.name) %>%
-                               union(GSE51878_1.name) %>% union(GSE51878_2.name) %>% union(GSE60642_1.name) %>%
-                               union(GSE60642_2.name) %>% union(GSE60641.name) %>% union(GSE65354_1.name) %>%
-                               union(GSE65354_2.name) %>% na.omit
-
-names(xinli.data.filter)    <- make.names(Ann %$% SYMBOL %>% toupper, unique = TRUE)
-
-common.names.xinli          <- intersect(rownames(affy.kd.matrix), RNA.seq.commonnames.xinli)
-
-
-# I used the vector() and matrix()
-# to create the empty matrix /vector
-# but it is not applied in this case
-#---
-xinli.whole.matrix          <- NULL
-xinli.rownames              <- NULL
-
-
-for (gene.name in common.names.xinli) {
-    if ( gene.name %in% toupper(Ann$SYMBOL) &
-             gene.name %in% toupper(rownames(rna.matrix)) ) {
-        row.buffer         <- c(affy.kd.matrix[gene.name,], rna.matrix[gene.name,], xinli.data.filter[gene.name])
-        xinli.whole.matrix <- rbind(xinli.whole.matrix, row.buffer)
-        xinli.rownames     <- append(xinli.rownames, gene.name)
-    }
-}
-
-xinli.dist.final <- cor(xinli.whole.matrix ,method = 'spearman')
-
-heatmap.2(xinli.dist.final, scale  = 'none', 
-						   Rowv = F,Colv = F, density.info = 'none',
-                           key  = TRUE, trace='none', symm = T,symkey = F,symbreaks = T,
-						   margins = c(5.5,5.5),dendrogram = 'none',
-                           cexRow  = 0.8, cexCol = 0.8, srtCol = 30,
-                           labRow  = rownames(xinli.whole.matrix)
-						  );
