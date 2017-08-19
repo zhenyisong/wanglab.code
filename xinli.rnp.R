@@ -31,8 +31,10 @@ pkgs <- c( 'tidyverse','Rsubread','org.Mm.eg.db','edgeR',
            'openxlsx','pheatmap','gridExtra','ggrepel',
            'QuasR','annotate','clusterProfiler',
            'GGally','RColorBrewer','ggbio',
-           'cluster','factoextra',"ggpubr",
-           'Rsamtools', 'devtools',
+           'cluster','factoextra','ggpubr',
+           'fitdistrplus', 'VennDiagram',
+           'Rsamtools', 'devtools','parallel',
+           'GenomicAlignments', 'BiocParallel',
            'TxDb.Mmusculus.UCSC.mm10.knownGene',
            'Mus.musculus', 'biovizBase',
            'BSgenome.Hsapiens.UCSC.hg38',
@@ -53,6 +55,7 @@ install.lib <- lapply(pkgs, require, character.only = TRUE)
 x1.runing.path <- file.path('D:\\wangli_data\\Rdata')
 setwd(x1.runing.path)
 load('xinliRNP.Rdata')
+load('multiple.xinli.Rdata')
 
 # copycat from
 #---
@@ -110,6 +113,8 @@ xinliRNP.qPorject <- qAlign( sampleFile,
 
 qQCReport( xinliRNP.qPorject, pdfFilename = 'xinliRNP.QC.pdf', 
            useSampleNames = TRUE, clObj = cluster)
+# add this one at 2017-07-18
+stopCluster(cluster)
 
 setwd(rsubread.index.lib)
 base.string          <-  'mm10'
@@ -215,11 +220,19 @@ grid.draw(control.ratio.table)
 # read the curationdata
 # 
 setwd("E:\\FuWai\\wangli.lab\\vsmc_analysis")
+# these two data set were deprecated
+#
+"
 vsmc.contractile.df     <- read_tsv('VSMC_contract_geneTSS1k.bed',  col_names = FALSE)
 vsmc.secretion.df       <- read_tsv('VSMC_synthetic_geneTSS1k.bed', col_names = FALSE)
+"
 
 
 
+
+"
+# second dataset from P1~P10
+#---
 vsmc.dge.table          <- read_tsv('P1_P10_DEG_2v2.xls',  col_names = TRUE) %>%
                            filter(P.Value < 0.05 & logFC > 0.58) %>% 
                            arrange(desc(logFC))
@@ -231,13 +244,22 @@ vsmc.contractile.id <- vsmc.dge.table[1:dge.num,1] %>%
 vsmc.secretion.id   <- vsmc.dge.table[(nrow(vsmc.dge.table) - dge.num):nrow(vsmc.dge.table),1] %>%
                        unlist %>% unique %>%
                        match(Ann$SYMBOL) %>% na.omit
-
-
 # data set from 
 vsmc.contractile.id <- unique(unlist(vsmc.contractile.df[,4])) %>%
                        match(Ann$SYMBOL) %>% na.omit
 vsmc.secretion.id   <- unique(unlist(vsmc.secretion.df[,4])) %>%
                        match(Ann$SYMBOL) %>% na.omit
+
+"
+vsmc.pdgfDD.sec.df     <- read_tsv('PDGFDD_contract_mus',  col_names = FALSE)
+vsmc.pdgfDD.con.df     <- read_tsv('PDGFDD_synthetic_mus', col_names = FALSE)
+vsmc.contractile.id    <- unique(vsmc.pdgfDD.con.df$X1) %>%
+                          match(Ann$SYMBOL) %>% na.omit
+vsmc.secretion.id      <- unique(vsmc.pdgfDD.sec.df$X1) %>%
+                          match(Ann$SYMBOL) %>% na.omit
+
+
+
 
 #
 vsmc.genes.class    <- c( rep('con',length(vsmc.contractile.id)),
@@ -246,37 +268,79 @@ vsmc.genes.class    <- c( rep('con',length(vsmc.contractile.id)),
 # please notice that this is not Entrez GeneID
 # this the row index
 #---
-vsmc.ann.id         <- c(vsmc.contractile.id, vsmc.secretion.id)
+vsmc.ann.id                <- c(vsmc.contractile.id, vsmc.secretion.id)
 
 xinliRIP.input.rpkm        <- xinliRIP.rpkm[,1]
 names(xinliRIP.input.rpkm) <- as.character(1:length(xinliRIP.input.rpkm))
-quantile.size              <- 4
+quantile.size              <- 6
+vsmc.gene.Q.index          <- paste('Q', 1:quantile.size, sep = '')
 xinliRIP.groups            <- xinliRIP.input.rpkm[xinliRIP.input.rpkm > 1] %>%
                               na.omit %>% sort(decreasing = TRUE) %>%
                               split( ceiling(seq_along(.)/(length(.)/quantile.size))) %>%
                               map(names)
 
-vsmc.gene.levels           <- rep('Q1',length(vsmc.ann.id))
+vsmc.gene.levels           <- rep('Q0',length(vsmc.ann.id))
 
-vsmc.gene.levels[vsmc.ann.id %in% xinliRIP.groups[[1]]] <- 'Q1'
-vsmc.gene.levels[vsmc.ann.id %in% xinliRIP.groups[[2]]] <- 'Q2'
-vsmc.gene.levels[vsmc.ann.id %in% xinliRIP.groups[[3]]] <- 'Q3'
-vsmc.gene.levels[vsmc.ann.id %in% xinliRIP.groups[[4]]] <- 'Q4'
+for( i in 1:quantile.size) {
+    vsmc.gene.levels[vsmc.ann.id %in% as.integer(xinliRIP.groups[[i]]) ] <- vsmc.gene.Q.index[i]
+}
+
+
+
+"
+vsmc.mapping.func          <- function(x, levels, groups, index) {
+                                  vsmc.gene.levels  <- levels
+                                  xinliRIP.groups   <- groups
+                                  vsmc.gene.Q.index <- index
+                                  vsmc.gene.levels[vsmc.ann.id %in% xinliRIP.groups[[x]]] <- vsmc.gene.Q.index[x]
+                                  return(vsmc.gene.levels)
+                              }
+
+
+map(1:10, vsmc.mapping.func, levels = vsmc.gene.levels,  groups = xinliRIP.groups, index = vsmc.gene.Q.index )
+"
+
 
 vsmc.gene.levels <- as.factor(vsmc.gene.levels)
 
 thocs.affinity      <- xinliRIP.rpkm[vsmc.ann.id,] %>%
-                       add(0.25) %>% as.data.frame %>%
+                       add(0.25) %>% as_tibble %>%
                        mutate( Ratio2 = thocs2/input, 
                                Ratio5 = thocs5/input,
                                Class  = vsmc.genes.class,
                                Groups = vsmc.gene.levels,
-                               Symbol = Ann$SYMBOL[vsmc.ann.id])
+                               Symbol = Ann$SYMBOL[vsmc.ann.id]) %>%
+                       filter(!(Groups == 'Q0'))
+
+
+
+
+
+thocs.table        <- thocs.affinity[sample(1:nrow(thocs.affinity), 10),] %>%
+                      tableGrob(rows = NULL)
+grid.newpage()
+grid.draw(thocs.table)
 
 thocs.affinity %>% filter(Groups == 'Q1' & Class == 'con') %>% nrow
 
-thocs.affinity %>% filter(Groups == 'Q1') %>% wilcox.test(Ratio2 ~ Class, data = .)
-thocs.affinity %>% filter(Groups == 'Q1') %>% wilcox.test(Ratio5 ~ Class, data = .)
+pvalue.matrix <- matrix( data = NA, nrow = quantile.size, ncol = 2)
+
+for( i in 1:quantile.size) {
+   pvalue.matrix[i,1] <-  thocs.affinity %>% 
+                          filter(Groups == vsmc.gene.Q.index[i]) %>% 
+                          wilcox.test(Ratio2 ~ Class, data = .)  %$% p.value
+   pvalue.matrix[i,2] <-  thocs.affinity %>% 
+                          filter(Groups == vsmc.gene.Q.index[i]) %>% 
+                          wilcox.test(Ratio5 ~ Class, data = .)  %$% p.value
+}
+#dimnames(pvalue.matrix) <- data.frame(row.names = vsmc.gene.Q.index, names = c('Thoc2','Thoc5'))
+rownames(pvalue.matrix) <- vsmc.gene.Q.index
+colnames(pvalue.matrix) <- c('Thoc2','Thoc5')
+
+thocs.pvalue.table        <- pvalue.matrix %>%
+                             {tableGrob(round(., digit = 4), rows = rownames(pvalue.matrix))}
+grid.newpage()
+grid.draw(thocs.pvalue.table)
 
 rip.thoc2.boxplot   <- ggplot(data = thocs.affinity, aes(x = Class, y = Ratio2)) + 
                        geom_violin(trim = T) +
@@ -284,7 +348,7 @@ rip.thoc2.boxplot   <- ggplot(data = thocs.affinity, aes(x = Class, y = Ratio2))
                        stat_summary( fun.data = 'mean_sdl', fun.args = list(mult = 1),
                                      geom = 'pointrange', color = 'red') +
                        facet_wrap( ~ Groups, scales = 'free', ncol = 2) +
-                       xlab('Thocs2 paired-wise non-param comparision \n according to gene expression level') +
+                       xlab('Thoc2 paired-wise non-param comparision \n according to gene expression level') +
                        ylab('Binding RPKM ration: treat/input')
 (rip.thoc2.boxplot)
 
@@ -294,10 +358,151 @@ rip.thoc5.boxplot   <- ggplot(data = thocs.affinity, aes(x = Class, y = Ratio5))
                        stat_summary( fun.data = 'mean_sdl', fun.args = list(mult = 1),
                                      geom = 'pointrange', color = 'red') +
                        facet_wrap( ~ Groups, scales = 'free', ncol = 2) +
-                       xlab('Thocs5 paired-wise non-param comparision \n according to gene expression level') +
+                       xlab('Thoc5 paired-wise non-param comparision \n according to gene expression level') +
                        ylab('Binding RPKM ration: treat/input')
                       
 (rip.thoc5.boxplot)
+
+plot_grid(rip.thoc2.boxplot, rip.thoc5.boxplot, ncol = 1, labels = c('A','B'))
+
+
+
+
+# second trial and error.
+#---
+
+xinliRIP.input.rpkm        <- xinliRIP.rpkm[,1]
+names(xinliRIP.input.rpkm) <- as.character(1:length(xinliRIP.input.rpkm))
+quantile.size              <- 4
+vsmc.gene.Q.index          <- paste('Q', 1:quantile.size, sep = '')
+xinliRIP.groups            <- xinliRIP.input.rpkm[xinliRIP.input.rpkm > 1] %>%
+                              na.omit %>% sort(decreasing = TRUE) %>%
+                              split( ceiling(seq_along(.)/(length(.)/quantile.size))) %>%
+                              map(names)
+
+vsmc.extra.class                      <- rep('non', nrow(xinliRIP.rpkm))
+vsmc.extra.class[vsmc.contractile.id] <- 'con'
+vsmc.extra.class[vsmc.secretion.id]   <- 'sec'
+vsmc.extra.levels                     <- rep('Q0', nrow(xinliRIP.rpkm))
+for( i in 1:quantile.size) {
+    vsmc.extra.levels[ as.integer(xinliRIP.groups[[i]]) ] <- vsmc.gene.Q.index[i]
+}
+
+
+thocs.extra      <- xinliRIP.rpkm %>%
+                       add(0.25) %>% as_tibble %>%
+                       mutate( Ratio2 = thocs2/input, 
+                               Ratio5 = thocs5/input,
+                               Class  = vsmc.extra.class,
+                               Groups = vsmc.extra.levels,
+                               Symbol = Ann$SYMBOL) %>%
+                       filter(!(Groups == 'Q0'))
+
+pvalue.matrix.non <- matrix( data = NA, nrow = quantile.size, ncol = 2)
+
+for( i in 1:quantile.size) {
+   pvalue.matrix.non[i,1] <-  thocs.extra %>% 
+                          filter(Class != 'non') %>%
+                          filter(Groups == vsmc.gene.Q.index[i]) %>%
+                          mutate(Class = as.factor(Class)) %>%
+                          wilcox.test(Ratio2 ~ Class, data = .)  %$% p.value
+   pvalue.matrix.non[i,2] <-  thocs.extra %>% 
+                          filter(Class != 'non' ) %>%
+                          filter(Groups == vsmc.gene.Q.index[i]) %>% 
+                          mutate(Class = as.factor(Class)) %>%
+                          wilcox.test(Ratio5 ~ Class, data = .)  %$% p.value
+}
+#dimnames(pvalue.matrix) <- data.frame(row.names = vsmc.gene.Q.index, names = c('Thoc2','Thoc5'))
+rownames(pvalue.matrix.non) <- vsmc.gene.Q.index
+colnames(pvalue.matrix.non) <- c('Thoc2','Thoc5')
+
+thoc.non.pvalue.table        <- pvalue.matrix.non  %>%
+                                {tableGrob(round(., digit = 4), rows = rownames(pvalue.matrix.non))}
+grid.newpage()
+grid.draw(thoc.non.pvalue.table)
+
+rip.thoc2.boxplot   <- thocs.extra %>% 
+                       filter((!Class == 'non')) %>%
+                       ggplot(data = ., aes(x = Class, y = Ratio2)) + 
+                       geom_violin(trim = T) +
+                       geom_jitter(position = position_jitter(.2) ) +
+                       stat_summary( fun.data = 'mean_sdl', fun.args = list(mult = 1),
+                                     geom = 'pointrange', color = 'red') +
+                       facet_wrap( ~ Groups, scales = 'free', ncol = 2) +
+                       xlab('Thoc2 paired-wise non-param comparision \n according to gene expression level') +
+                       ylab('Binding RPKM ration: treat/input')
+
+
+# third trial and error
+# the third set
+#---
+
+
+
+setwd("E:\\FuWai\\wangli.lab\\vsmc_analysis")
+pdgfBB.df <- read_tsv('PDGF_DEG.txt')
+
+
+# the Venns digram
+#---
+
+# see 186
+head(xinliRIP.rpkm.df)
+percentage                  <- 0.2
+xinliRIP.rpkm.sorted.ratio5 <- xinliRIP.rpkm.df %>% mutate(input = input + 0.001) %>%
+                               mutate(Ratio5 = thocs5/input) %>% arrange(desc(Ratio5))
+gene.num                    <- ( percentage * nrow(xinliRIP.rpkm.sorted.ratio5) ) %>% as.integer
+
+xinliRIP.gene.names         <- xinliRIP.rpkm.sorted.ratio5 %$% GeneSymbol[1:gene.num]
+
+# you have to load the multiple.xinli.Rdata?
+# or must use the 772 data set to proceed 
+# the data
+# direction
+# thoc5 - control
+# be careful, you must reload the Ann
+#
+#---
+
+gene.thoc5.772              <- gene.mouse %$% counts[,12:15] %>%
+                               DGEList() %>% calcNormFactors() %>%
+                               voom(design = design) %>%
+                               lmFit() %>%
+                               contrasts.fit(contrast.matrix) %>%
+                               eBayes() %>%
+                               topTable(number = Inf, adjust.method = 'BH', sort.by = 'none') %>%
+                               mutate(symbol = Ann$SYMBOL)
+summary(gene.thoc5.772)
+filter.lfc                  <- -0.58
+filter.pval                 <- 0.05
+gene.names.772              <- gene.thoc5.772 %>% 
+                               filter( adj.P.Val < filter.pval & logFC <  filter.lfc) %>%
+                               dplyr::select(symbol) %>% unlist
+
+# no recylce
+# https://stackoverflow.com/questions/29957893/r-convert-vector-to-matrix-without-recycling
+#---
+commmon.RIP <- intersect(xinliRIP.gene.names, gene.names.772) %>% na.omit
+length(commmon.RIP)   <- prod(dim(matrix(commmon.RIP, ncol = 4)))
+
+result.table <- grid.newpage() %>% {matrix(commmon.RIP, ncol= 4, byrow = TRUE)} %>%
+                tableGrob(rows = NULL) %>%
+                grid.draw()
+
+area.1     <- length(xinliRIP.gene.names %>% na.omit)
+area.2     <- length(gene.names.772 %>% na.omit)
+cross.area <- length(commmon.RIP)
+grid.newpage() %>%  {draw.pairwise.venn( area.1, area.2, cross.area, 
+                     alpha = rep(0.5, 2), fill = c('cyan','navyblue'),
+                     col = rep('gray97',2), lwd = rep(0,2), 
+                     euler.d = T, scaled = F,
+                     cex = c(1.5,1.5,1.5),
+                     category = c('XinliRIP','722-DGE'),
+                     cat.cex = 1.2)}
+
+
+
+
 
 
 
@@ -306,11 +511,33 @@ rip.thoc5.boxplot   <- ggplot(data = thocs.affinity, aes(x = Class, y = Ratio5))
 setwd(xinliRNP.output.dir)
 xinliRIP.bam.rename <- list('input','thocs2','thocs5')
 xinliRIP.bai        <- paste(xinliRIP.bam.rename,'.bam', sep = '')
-map2( xinliRNP.output.filenames, 
-      xinliRIP.bam.rename,
-      sortBam, overwrite = TRUE )
-map( xinliRIP.bai ,
-     indexBam, overwrite = TRUE )
+cluster             <- makeCluster(4)
+system.time( mcmapply( sortBam, 
+                       file        = xinliRNP.output.filenames, 
+                       destination = xinliRIP.bam.rename,
+                       overwrite   = TRUE) )
+
+system.time( mclapply( xinliRIP.bai, indexBam, 
+                       overwrite   = TRUE) )
+
+stopCluster(cluster)
+# BiocParallel::bpparam()
+# restrict the param
+# library(BiocParallel)
+# register(MulticoreParam(worker = 2))
+# MulticoreParam() not supported on Windows, use SnowParam()
+#---
+fuck <- readGAlignmentPairs(xinliRIP.bai[1])
+#---
+# deprecated,instead
+# I used the parrelle processing procedure
+#
+#---
+#system.time ( map2( xinliRNP.output.filenames, 
+#                    xinliRIP.bam.rename,
+#                    sortBam, overwrite = TRUE ))
+#system.time( map( xinliRIP.bai ,
+#                indexBam, overwrite = TRUE ) )
 # this is a temporary file folder to
 # to store then sorted bam files
 # and index file
@@ -320,11 +547,16 @@ setwd("D:\\wangli_data\\Rdata\\xinRIP")
 # http://www.tengfei.name/ggbio/docs/man/tracks.html
 # author blog, please see more fine-tune method
 #---
-mouse.txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
+mouse.txdb    <- TxDb.Mmusculus.UCSC.mm10.knownGene
 columns(Mus.musculus)
 xinli.control <- genes(mouse.txdb, filter = list(gene_id = 11459)) 
 wh            <- keepSeqlevels(xinli.control, "chr8")
 
+mouse.genes   <- genes(mouse.txdb)
+
+xinli.test.gene <- readGAlignments('thocs5.bam', param = ScanBamParam(which = wh), use.names = T)
+autoplot(xinli.test.gene, geom = 'polygon', stat = 'coverage',coverage.col = 'green', fill = 'green', alpha = .2)
+ggplot(xinli.test.gene, geom = 'polygon', stat = 'coverage',coverage.col = 'green', fill = 'green', alpha = .2)
 gene.model   <- autoplot( Mus.musculus, which = wh, 
                           columns = c("GENENAME", "SYMBOL"), 
                           names.expr = "GENENAME::SYMBOL")
