@@ -1,6 +1,6 @@
 # @author Yisong Zhen
 # @since   2017-06-20
-# @update  2017-08-17
+# @update  2017-08-20
 # @parent 
 #    see fuwai: vsmc_sample_cor.R
 #    see fuwai:   microarry2Exprs.R
@@ -33,8 +33,8 @@ pkgs <- c( 'tidyverse','Rsubread','org.Hs.eg.db',
            'limma', 'DESeq2', 'genefilter','grid',
            'openxlsx','pheatmap','gridExtra','ggrepel',
            'QuasR','annotate','clusterProfiler',
-           'cluster','factoextra',"ggpubr",
-           'RColorBrewer')
+           'cluster','factoextra','ggpubr',
+           'RColorBrewer','d3heatmap','ComplexHeatmap')
 # install.package(pkgs)
 # this will install all necessary packages
 # required in this project
@@ -45,8 +45,7 @@ install.lib <- lapply(pkgs, require, character.only = TRUE)
 "
 x1.running.path <- file.path('D:\\wangli_data\\Rdata')
 setwd(x1.running.path)
-load('vsmc.Rdata')
-load('multiple.xinli.Rdata')
+load('xinli.sampleCorrelation.Rdata')
 "
 
 # RNA-seq rawdata reproessing
@@ -77,14 +76,14 @@ Rdata.output.dir   <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/Rdata
 setwd(Rdata.output.dir)
 load('xinli.sampleCorrelation.Rdata')
 
-
+"
 setwd(rsubread.index.lib)
 # sessionInfo()
 # Rsubread_1.24.2
 # the following code implement the indexing the reference genomes by 
 # rsubread
 #---
-"
+
 base.strings     <- list('hg38','mm10','rn6')
 reference.sets   <- list( hg38.genome.file, mm10.genome.file, rn6.genome.file)
 map2(base.strings, reference.sets, buildindex)
@@ -457,7 +456,8 @@ xinli.genes     <- featureCounts( xinli.output.filenames,
                                   GTF.attrType           = 'gene_id',
                                   allowMultiOverlap      = TRUE)
 
-"
+# RNA-seq data preprocessing finished
+#--- end
 
 # GSE29955
 # Affymetrix Human Genome U133A 2.0 Array
@@ -834,7 +834,9 @@ GSE21403.symbols   <- rownames(GSE21403.exprs) %>%
                       {unlist(mget(., rat2302SYMBOL, ifnotfound = NA))}
 GSE21403.data      <- cbind(GSE21403.symbols, GSE21403.exprs )
 
-
+# microarray raw data preprocessing completed!
+#---end
+"
 
 
 #---
@@ -880,9 +882,9 @@ names(GSE35664.2) <- GSE35664.genes$annotation$GeneID %>%
 names(GSE35664.3) <- GSE35664.genes$annotation$GeneID %>% 
                      make.names(unique = T) %>% toupper()
 
-GSE38056   <- rnaseq.matrix.list[[2]][,2] - rnaseq.matrix.list[[2]][,1]
-names(GSE38056) <- GSE38056.genes$annotation$GeneID %>% 
-                   make.names(unique = T) %>% toupper()
+GSE38056          <- rnaseq.matrix.list[[2]][,2] - rnaseq.matrix.list[[2]][,1]
+names(GSE38056)   <- GSE38056.genes$annotation$GeneID %>% 
+                     make.names(unique = T) %>% toupper()
 
 GSE44461   <- apply(rnaseq.matrix.list[[3]][,4:6], 1, median) - 
               apply(rnaseq.matrix.list[[3]][,1:3], 1, median) 
@@ -890,6 +892,12 @@ names(GSE44461) <- mapIds( org.Hs.eg.db, keys = as.character(GSE44461.genes$anno
                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
                    unlist %>%
                    make.names(unique = T) %>% toupper()
+
+# only GSE51878.1
+# is kd - control
+# GSE51878.2 
+# is mock - control
+#
 GSE51878.1 <- apply(rnaseq.matrix.list[[4]][,1:3], 1, median) - 
               apply(rnaseq.matrix.list[[4]][,4:6], 1, median) 
 GSE51878.2 <- apply(rnaseq.matrix.list[[4]][,7:9], 1, median) - 
@@ -911,12 +919,12 @@ GSE60642.2 <- apply(rnaseq.matrix.list[[5]][,1:2], 1, median) -
 
 names(GSE60642.1) <- mapIds( org.Mm.eg.db, keys = as.character(GSE60642.genes$annotation$GeneID), 
                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
-                   unlist %>%
-                   make.names(unique = T) %>% toupper()
+                     unlist %>%
+                     make.names(unique = T) %>% toupper()
 names(GSE60642.2) <- mapIds( org.Mm.eg.db, keys = as.character(GSE60642.genes$annotation$GeneID), 
                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
-                   unlist %>%
-                   make.names(unique = T) %>% toupper()
+                     unlist %>%
+                     make.names(unique = T) %>% toupper()
 
 
 GSE60641   <- apply(rnaseq.matrix.list[[6]][,4:6], 1, median) - 
@@ -926,19 +934,22 @@ names(GSE60641) <- mapIds( org.Mm.eg.db, keys = as.character(GSE60641.genes$anno
                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
                    unlist %>%
                    make.names(unique = T) %>% toupper()
-
-GSE65354.1 <- rnaseq.matrix.list[[7]][,2] - rnaseq.matrix.list[[7]][,4]
-GSE65354.2 <- rnaseq.matrix.list[[7]][,1] - rnaseq.matrix.list[[7]][,3]
+# Hsp60
+GSE65354.1 <- apply(rnaseq.matrix.list[[7]][,3:4], 1, median) - 
+              apply(rnaseq.matrix.list[[7]][,1:2], 1, median)
+# TNF.alpha
+GSE65354.2 <- apply(rnaseq.matrix.list[[7]][,c(1,3)], 1, median) - 
+              apply(rnaseq.matrix.list[[7]][,c(2,4)], 1, median)
 
 names(GSE65354.1) <- mapIds( org.Hs.eg.db, keys = as.character(GSE65354.genes$annotation$GeneID), 
                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
-                   unlist %>%
-                   make.names(unique = T) %>% toupper()
+                     unlist %>%
+                     make.names(unique = T) %>% toupper()
 
 names(GSE65354.2) <- mapIds( org.Hs.eg.db, keys = as.character(GSE65354.genes$annotation$GeneID), 
                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
-                   unlist %>%
-                   make.names(unique = T) %>% toupper()
+                     unlist %>%
+                     make.names(unique = T) %>% toupper()
 
 xinli.FBS   <- apply(rnaseq.matrix.list[[8]][,3:4], 1, median) - 
                apply(rnaseq.matrix.list[[8]][,1:2], 1, median)
@@ -947,12 +958,12 @@ xinli.Thoc5 <- apply(rnaseq.matrix.list[[8]][,7:8], 1, median) -
 
 names(xinli.FBS) <- mapIds( org.Mm.eg.db, keys = as.character(xinli.genes$annotation$GeneID), 
                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
-                   unlist %>%
-                   make.names(unique = T) %>% toupper()
+                    unlist %>%
+                    make.names(unique = T) %>% toupper()
 names(xinli.Thoc5) <- mapIds( org.Mm.eg.db, keys = as.character(xinli.genes$annotation$GeneID), 
                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
-                   unlist %>%
-                   make.names(unique = T) %>% toupper()
+                      unlist %>%
+                      make.names(unique = T) %>% toupper()
 
 # microarray data analysis
 #---
@@ -1335,14 +1346,37 @@ names(GSE21403) <- GSE21403.data[,1] %>% unlist %>%
 #                               GSE60642.2, GSE60641,   GSE65354.1, GSE65354.2,
 #                               xinli.FBS,  xinli.Thoc5 )
 
+# GSE35664 is small RNA-seq seq.
+# 
 
-rna.seq.data.list    <- list( GSE38056,   GSE44461,   GSE51878.1, GSE51878.2, 
-                              GSE60642.1, GSE60642.2, GSE60641,   GSE65354.1,
-                              xinli.FBS,  xinli.Thoc5 )
+
+rna.seq.data.list    <- list( GSE38056,   GSE44461,   GSE51878.1, 
+                              GSE60642.1, GSE60642.2, GSE60641, 
+                              GSE65354.1, GSE65354.2, xinli.FBS,  
+                              xinli.Thoc5 )
+
+
+
+# second filtering approach
+#
+
+
+setwd('E:\\FuWai\\wangli.lab\\vsmc_analysis')
+vsmc.pdgfDD.sec.df     <- read_tsv('PDGFDD_contract_mus',  col_names = FALSE)
+vsmc.pdgfDD.con.df     <- read_tsv('PDGFDD_synthetic_mus', col_names = FALSE)
+
+vsmc.names         <- vsmc.pdgfDD.sec.df$X1 %>% toupper() %>%
+                      union( vsmc.pdgfDD.con.df$X1 %>% toupper() ) %>% 
+                      unique()
+
+# first filtering approach, using lfc threshold
 
 names.func <- . %>% {names(.)[abs(.) > 0.58]}
+# the second filtering method, using predifined migration genes
+#---
+names.func <- . %>% {names(.)[ names(.) %in% vsmc.names]}
 
-rnaseq.common.names <- intersect( names(GSE38056), names(GSE38056) )%>%
+rnaseq.common.names <- intersect( names(GSE38056), names(GSE44461) )%>%
                        intersect( names(GSE51878.1) ) %>%
                        intersect( names(GSE60642.1) ) %>%
                        intersect( names(GSE60641))    %>%
@@ -1396,8 +1430,205 @@ common.names      <- intersect(rnaseq.common.names, microarray.common.names)
 correlation.names <- union(microarray.names, rnaseq.names) %>% 
                      intersect(common.names) %>% unique()
 
+samples.matrix.df <- data.frame( GSE38056    = GSE38056[correlation.names],    
+                                 GSE44461    = GSE44461[correlation.names], 
+                                 GSE51878.1  = GSE51878.1[correlation.names],  
+                                 GSE60642.1  = GSE60642.1[correlation.names],
+                                 GSE60642.2  = GSE60642.2[correlation.names],
+                                 GSE60641    = GSE60641[correlation.names],
+                                 GSE65354.1  = GSE65354.1[correlation.names],
+                                 GSE65354.2  = GSE65354.2[correlation.names],
+                                 xinli.FBS   = xinli.FBS[correlation.names],
+                                 xinli.Thoc5 = xinli.Thoc5[correlation.names],
+                                 GSE29955.1  = GSE29955.1[correlation.names],
+                                 GSE29955.2  = GSE29955.2[correlation.names],
+                                 GSE29955.3  = GSE29955.3[correlation.names],
+                                 GSE36487.1  = GSE36487.1[correlation.names],
+                                 GSE36487.1  = GSE36487.2[correlation.names],
+                                 GSE12261.1  = GSE12261.1[correlation.names],
+                                 GSE12261.2  = GSE12261.2[correlation.names],
+                                 GSE13791.1  = GSE13791.1[correlation.names],
+                                 GSE13791.2  = GSE13791.2[correlation.names],
+                                 GSE11367    = GSE11367[correlation.names],
+                                 GSE47744.1  = GSE47744.1[correlation.names],
+                                 GSE47744.2  = GSE47744.2[correlation.names],
+                                 GSE47744.3  = GSE47744.3[correlation.names],
+                                 GSE42813.1  = GSE42813.1[correlation.names],
+                                 GSE42813.2  = GSE42813.2[correlation.names],
+                                 GSE60447.1  = GSE60447.1[correlation.names],
+                                 GSE60447.2  = GSE60447.2[correlation.names],
+                                 GSE19441    = GSE19441[correlation.names], 
+                                 GSE56819.1  = GSE56819.1[correlation.names],
+                                 GSE56819.2  = GSE56819.2[correlation.names],
+                                 GSE17556.1  = GSE17556.1[correlation.names],
+                                 GSE17556.2  = GSE17556.2[correlation.names],
+                                 GSE17556.3  = GSE17556.3[correlation.names],
+                                 GSE17556.4  = GSE17556.4[correlation.names],
+                                 GSE63425.1  = GSE63425.1[correlation.names],
+                                 GSE63425.2  = GSE63425.2[correlation.names],
+                                 GSE68021.1  = GSE68021.1[correlation.names],
+                                 GSE68021.2  = GSE68021.2[correlation.names],
+                                 GSE68021.3  = GSE68021.3[correlation.names],
+                                 GSE68021.4  = GSE68021.4[correlation.names],
+                                 GSE68021.5  = GSE68021.5[correlation.names],
+                                 GSE68021.6  = GSE68021.6[correlation.names],
+                                 GSE50251    = GSE50251[correlation.names],
+                                 GSE66538    = GSE66538[correlation.names],
+                                 GSE66280    = GSE66280[correlation.names],
+                                 GSE15713    = GSE15713[correlation.names],
+                                 GSE66624    = GSE66624[correlation.names],
+                                 GSE13594    = GSE13594[correlation.names],
+                                 GSE19106    = GSE19106[correlation.names],
+                                 GSE21573.1  = GSE21573.1[correlation.names],
+                                 GSE21573.2  = GSE21573.2[correlation.names],
+                                 GSE21573.3  = GSE21573.3[correlation.names],
+                                 GSE21573.4  = GSE21573.4[correlation.names],
+                                 GSE31080.1  = GSE31080.1[correlation.names],
+                                 GSE31080.2  = GSE31080.2[correlation.names],
+                                 GSE15841.1  = GSE15841.1[correlation.names],
+                                 GSE15841.2  = GSE15841.2[correlation.names],
+                                 GSE15841.3  = GSE15841.3[correlation.names],
+                                 GSE15841.4  = GSE15841.4[correlation.names],
+                                 GSE19909    = GSE19909[correlation.names],
+                                 GSE21403    = GSE21403[correlation.names]) 
 
+samples.names.df <- data.frame( GSE38056    = 'AngII',    
+                                GSE44461    = 'Tcf21', 
+                                GSE51878.1  = 'SENCR.kd', 
+                                GSE60642.1  = 'Jag.kn',
+                                GSE60642.2  = 'Jag.ht',
+                                GSE60641    = 'Jag1',
+                                GSE65354.1  = 'Hsp60',
+                                GSE65354.2  = 'TNF.alpha',
+                                xinli.FBS   = 'xinli.FBS',
+                                xinli.Thoc5 = 'xinli.772',
+                                GSE29955.1  = 'OPG',
+                                GSE29955.2  = 'RANKL',
+                                GSE29955.3  = 'TRAIL',
+                                GSE36487.1  = 'moxLDL_3h',
+                                GSE36487.1  = 'moxLDL_21h',
+                                GSE12261.1  = 'ME-treated_4h',
+                                GSE12261.2  = 'ME-treated_30h',
+                                GSE13791.1  = 'T.cruzi_24h',
+                                GSE13791.2  = 'T.cruzi_48',
+                                GSE11367    = 'IL-17',
+                                GSE47744.1  = 'Cholesterol.1',
+                                GSE47744.2  = 'Cholesterol.2',
+                                GSE47744.3  = 'HDL',
+                                GSE42813.1  = 'APOE',
+                                GSE42813.2  = 'APOE.VE',
+                                GSE60447.1  = 'Static.Zyxin.null',
+                                GSE60447.2  = 'Strech.Zyxin.null',
+                                GSE19441    = 'CASMC.kd', 
+                                GSE56819.1  = 'ROCK1.kd',
+                                GSE56819.2  = 'ZIPK.kd',
+                                GSE17556.1  = 'HG.TSP',
+                                GSE17556.2  = 'Man',
+                                GSE17556.3  = 'Man.TSP',
+                                GSE17556.4  = 'TSP.Man',
+                                GSE63425.1  = 'TAB.GCA.+',
+                                GSE63425.2  = 'TAB.GCA.-',
+                                GSE68021.1  = 'LDL.1h',
+                                GSE68021.2  = 'LDL.5h',
+                                GSE68021.3  = 'LDL.24h',
+                                GSE68021.4  = 'ox.LDL.1h',
+                                GSE68021.5  = 'ox.LDL.5h',
+                                GSE68021.6  = 'ox.LDL.24h',
+                                GSE50251    = 'embryonic.origin.Specific',
+                                GSE66538    = 'Jasp',
+                                GSE66280    = 'Glucose',
+                                GSE15713    = 'Glut1',
+                                GSE66624    = 'Versican',
+                                GSE13594    = 'CD9',
+                                GSE19106    = 'PDGF.BB',
+                                GSE21573.1  = 'BMPR2',
+                                GSE21573.2  = 'cdBMPR2',
+                                GSE21573.3  = 'kdBMPR2',
+                                GSE21573.4  = 'edBMPR2',
+                                GSE31080.1  = 'IL-1b',
+                                GSE31080.2  = 'PDGF.DD',
+                                GSE15841.1  = 'TRAP',
+                                GSE15841.2  = 'TRAP.PTX',
+                                GSE15841.3  = 'TRAP.120',
+                                GSE15841.4  = 'TRAP.PTX.120',
+                                GSE19909    = 'fluid.stress',
+                                GSE21403    = 'IL-1b') 
+
+# this is guided by wangli
+#---
+selected.sample.names <- c('xinli.772', 'xinli.FBS','PDGF.BB','PDGF.DD','ox.LDL.1h','APOE.VE','Jag1','fluid.stress',
+                           'AngII', 'TNF.alpha','ROCK1.kd', 'OPG', 'CD9', 'Glucose' )
+final.result <- match(selected.sample.names,unlist(samples.names.df)) %>% 
+                {names(samples.names.df)[.]} %>%
+                {samples.matrix.df[,.]} %>%
+                as.matrix %>% cor(method = 'pearson') 
+dimnames(final.result) <- list(selected.sample.names, selected.sample.names)
+
+table.pearson <- grid.newpage() %>% 
+                 {tableGrob( round(final.result, digits = 2), 
+                            rows = rownames(final.result ),
+                            cols = colnames(final.result) )} %>%
+                 grid.draw()
+#color.bar    <- colorRampPalette(c('blue', 'white', 'red'))(100)
+color.bar    <- colorRampPalette(brewer.pal(10,'RdYlBu'))(100)
+pheatmap( final.result, cluster_rows = T, cluster_cols = T,
+          clustering_distance_rows = 'correlation', 
+          clustering_distance_cols = 'correlation',
+          cellwidth = 15, cellheight = 15,
+          color = color.bar, 
+          scale = 'none')
+
+d3heatmap( final.result, colors = 'RdYlBu', Colv = 'Rowv',
+           width = 500, height = 400 )
+
+Heatmap( final.result, name = 'VSMC migration sample correlation',
+         column_title = 'sample names', row_title = 'sample names')
+
+
+#
+# distrbution
+# 
+setwd('E:\\FuWai\\wangli.lab\\Others')
+vcms.markers       <- 'SM-markers.xlsx' # this data is manually curated
+vcms.dif.table     <- read.xlsx(vcms.markers)
+vcms.sec.table     <- read.xlsx(vcms.markers)
+vsmc.dif.genename  <- vcms.dif.table$GeneSymbol
+vsmc.sec.genename  <- vcms.sec.table$GeneSymbol
+                   
+
+thoc5.rpkm.symbols <- mapIds( org.Mm.eg.db, keys= as.character(gene.mouse$annotation$GeneID), 
+                              keytype = 'ENTREZID', column = 'SYMBOL') %>% make.names(unique = T)
+genes.thoc5.rpkm   <- gene.mouse %$% counts[,12:15] %>% DGEList(genes = gene.mouse$annotation) %>%
+                      rpkm(normalized.lib.sizes = TRUE, log = TRUE)
+
+thoc5.dge.tidy     <- list( Control = apply(genes.thoc5.rpkm[,1:2], 1, mean),
+                            Treat   = apply(genes.thoc5.rpkm[,3:4], 1, mean)) %>% as.data.frame %>%
+                      mutate(Plus = Treat + Control, Minus = Treat - Control) %>%
+                      mutate(symbol = thoc5.rpkm.symbols ) %>%
+                      mutate(Class = 1)
+
+
+thoc5.dge.tidy[thoc5.dge.tidy$symbol %in% vsmc.dif.genename,'Class']   <- 2
+thoc5.dge.tidy[thoc5.dge.tidy$symbol %in% vsmc.sec.genename,'Class']   <- 3
+vsmc.dif.df          <- thoc5.dge.tidy[thoc5.dge.tidy$symbol %in% vsmc.dif.genename,]
+vsmc.sec.df          <- thoc5.dge.tidy[thoc5.dge.tidy$symbol %in% vsmc.dif.genename,]
+
+
+vsmc <- ggplot(data = thoc5.dge.tidy) +
+       ylab('Knockdown of Thoc5') +
+       geom_point(aes( x = Plus, y = Minus,
+                      color = as.factor(Class), size = as.factor(Class), alpha = as.factor(Class) ) )+
+       scale_size_manual(values = c(2, 2, 2), guide = FALSE) + 
+       scale_alpha_manual(values = c(1/200, 1, 1), guide = FALSE) + 
+       scale_colour_manual(name = 'gene groups',values = c('black', 'blue', 'red'), 
+                           labels = c('non-related genes','differentiation marker','secretory marker')) + 
+       geom_text_repel( aes(x = Plus, y = Minus), label = vsmc.dif.df[,'symbol'], 
+                  data = vsmc.dif.df,hjust = 1,vjust = 1, size = 2, col = 'blue') +
+       geom_text_repel( aes(x = Plus, y = Minus), label = vsmc.sec.df[,'symbol'], 
+                  data = vsmc.sec.df,hjust = 1,vjust = 1, size = 2, col = 'red') +
+       theme(legend.position = c(0.8, 0.2),legend.title.align = 0.5)
 
 setwd(Rdata.output.dir)
+#save(samples.matrix.df, samples.names.df, file = 'xinli.sampleCorrelation.simple.Rdata')
 save.image('xinli.sampleCorrelation.Rdata')
 quit('no')

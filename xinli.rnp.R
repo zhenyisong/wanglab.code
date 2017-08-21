@@ -501,10 +501,76 @@ grid.newpage() %>%  {draw.pairwise.venn( area.1, area.2, cross.area,
                      cat.cex = 1.2)}
 
 
+#
+# wangli,assignment
+# email title:
+# Re: Fw:Fw: PDGFBB_DEG_avgFC,PDGF_DEG
+# 08-17,2017
+#---
+xinliRIP.rpkm <- xinliRNP.genes %$% counts %>% DGEList(genes = xinliRNP.genes$annotation) %>%
+                 rpkm(normalized.lib.sizes = TRUE, log = FALSE)
+colnames(xinliRIP.rpkm) <- c('input','thoc2','thoc5')
+
+xinliRIP.rpkm.symbols <- mapIds( org.Mm.eg.db, keys= as.character(xinliRNP.genes$annotation$GeneID), 
+                                 keytype = "ENTREZID", column = 'SYMBOL') %>% make.names(unique = T)
+xinliRIP.rpkm.df <- xinliRIP.rpkm %>% as.data.frame %>% 
+                    mutate( GeneSymbol = xinliRIP.rpkm.symbols, 
+                            EntrezID   = xinliRNP.genes$annotation$GeneID) %>%
+                    dplyr::select(GeneSymbol, EntrezID, input, thoc2, thoc5)
+
+
+thoc5.symbols               <- mapIds( org.Mm.eg.db, keys= as.character(gene.mouse$annotation$GeneID), 
+                                       keytype = "ENTREZID", column = 'SYMBOL') %>% make.names(unique = T)
+gene.thoc5.772              <- gene.mouse %$% counts[,12:15] %>%
+                               DGEList() %>% calcNormFactors() %>%
+                               voom(design = design) %>%
+                               lmFit() %>%
+                               contrasts.fit(contrast.matrix) %>%
+                               eBayes() %>%
+                               topTable(number = Inf, adjust.method = 'BH', sort.by = 'none') %>%
+                               mutate(symbol = thoc5.symbols)
+
+rip.exprs.tidy    <- inner_join( xinliRIP.rpkm.df, gene.thoc5.772, 
+                                 by = c('GeneSymbol' = 'symbol')) %>%
+                     mutate(Ratio5 = thoc5/(input + 0.0001))
+
+rip.exprs.up      <- rip.exprs.tidy %>% filter((P.Value < 0.05 & logFC > 0)) %>%
+                     dplyr::select(Ratio5) %>% mutate(Class = 1)
+
+rip.exprs.down    <- rip.exprs.tidy %>% filter((P.Value < 0.05 & logFC < 0)) %>%
+                     dplyr::select(Ratio5) %>% mutate(Class = 2)
+rip.exprs.whole   <- rip.exprs.tidy  %>%
+                     dplyr::select(Ratio5) %>% 
+                     mutate(Class = 3)
+
+rip.exprs.class.df <- rbind(rip.exprs.up, rip.exprs.down) %>%
+                      rbind(rip.exprs.whole) %>% mutate(Class = as.factor(Class))  
+
+rip.thoc5.boxplot   <- rip.exprs.class.df %>% 
+                       ggplot(aes(x = Class, y = log(Ratio5))) + 
+                       geom_violin(trim = T) +
+                       stat_summary( fun.data = 'mean_sdl', fun.args = list(mult = 1),
+                                     geom = 'pointrange', color = 'red') +
+                       xlab('Thoc5 RIP ratio\n according to expression change direction') +
+                       ylab('Binding log(RPKM ratio): treat/input')
+
+
+rip.exprs.class.df %>% filter(Class != 2) %>% wilcox.test(Ratio5 ~ Class, data = .)  %$% p.value
+rip.exprs.class.df %>% filter(Class != 1) %>% wilcox.test(Ratio5 ~ Class, data = .)  %$% p.value
 
 
 
+"
+1）分析36个合并基因，是否在FBS数据定义的分泌型和收缩型基因中富集；
 
+这个似乎是这样一个模型：
+在FBS数据定义的全基因中，随机挑选36个基因，而这36个基因是差异基因（分泌或收缩型基因）的可能？
+我们目前得挑法是RIP高的基因和772-DEG的交集，得到的36个基因；
+我们的想法是：
+这种挑基因的方式，富集了超出预期之外的（分泌、收搜）基因数目，比如，随机挑，可能只有12个基因，预期。
+
+我再想想。
+"
 
 # Covergae figure
 #---
