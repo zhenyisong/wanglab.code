@@ -1,15 +1,13 @@
 # @author Yisong Zhen
 # @since   2017-06-20
-# @update  2017-08-20
+# @update  2017-08-22
 # @parent 
-#    see fuwai: vsmc_sample_cor.R
+#    see fuwai:   vsmc_sample_cor.R
 #    see fuwai:   microarry2Exprs.R
 #    see wanglab: multiple.xinli.R
-# @processed R image
-#   load from X1 dir
-#   vsmc.Rdata
-#   multiple.xinli.Rdata
 
+
+# FBS
 # nohup R CMD BATCH /home/zhenyisong/biodata/wanglab/wangcode/xinli.sampleCorrelation.R &
 
 
@@ -456,8 +454,54 @@ xinli.genes     <- featureCounts( xinli.output.filenames,
                                   GTF.attrType           = 'gene_id',
                                   allowMultiOverlap      = TRUE)
 
+
+
+# yaofang HA2Z data set
+
+yaofang.rawdata        <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/yaofang/HA2A')
+yaofang.output.dir     <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/yaofang/HA2A/rsubread')
+dir.create(yaofang.output.dir, showWarnings = TRUE, recursive = TRUE)
+yaofang.files          <- list.files( path = yaofang.rawdata, pattern = '*.fastq$', 
+                                      all.files = FALSE, full.names  = TRUE, 
+                                      recursive = FALSE, ignore.case = FALSE, include.dirs = F)
+
+
+yaofang.output.filenames <- basename(yaofang.files) %>% sub(pattern = '.fastq', replacement = '') %>%
+                            paste0(yaofang.output.dir,'/', . ,'.bam') 
+
+setwd(rsubread.index.lib)
+base.string           <- 'mm10'
+align( index          = base.string, 
+       readfile1      = yaofang.files, 
+       input_format   = 'FASTQ', 
+       type           = 'rna',
+       output_file    = yaofang.output.filenames, 
+       output_format  = 'BAM',
+       PE_orientation = 'fr', 
+       nthreads       = 20, 
+       indels         = 1,
+       maxMismatches  = 3,
+       phredOffset    = 33,
+       unique         = T )
+
+yaofang.genes     <- featureCounts( yaofang.output.filenames, 
+                                    useMetaFeatures = TRUE,
+                                    countMultiMappingReads = FALSE,
+                                    strandSpecific         = 0, 
+                                    isPairedEnd            = FALSE,
+                                    autosort               = TRUE,
+                                    nthreads               = 20,
+                                    annot.inbuilt          = 'mm10', 
+                                    GTF.featureType        = 'exon',
+                                    GTF.attrType           = 'gene_id',
+                                    allowMultiOverlap      = TRUE)
+
+
+
+
 # RNA-seq data preprocessing finished
 #--- end
+
 
 # GSE29955
 # Affymetrix Human Genome U133A 2.0 Array
@@ -854,7 +898,7 @@ GSE21403.data      <- cbind(GSE21403.symbols, GSE21403.exprs )
 #---
 rnaseq.list      <- list( GSE35664.genes, GSE38056.genes, GSE44461.genes,
                           GSE51878.genes, GSE60642.genes, GSE60641.genes,
-                          GSE65354.genes, xinli.genes )
+                          GSE65354.genes, xinli.genes, yaofang.genes)
 
 annot.list       <- map(rnaseq.list, . %$% annotation)
 rnaseq.rlog.func <- function(genes,annot) {
@@ -956,15 +1000,25 @@ xinli.FBS   <- apply(rnaseq.matrix.list[[8]][,3:4], 1, median) -
 xinli.Thoc5 <- apply(rnaseq.matrix.list[[8]][,7:8], 1, median) - 
                apply(rnaseq.matrix.list[[8]][,5:6], 1, median)
 
-names(xinli.FBS) <- mapIds( org.Mm.eg.db, keys = as.character(xinli.genes$annotation$GeneID), 
+names(xinli.FBS)   <- mapIds( org.Mm.eg.db, keys = as.character(xinli.genes$annotation$GeneID), 
                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
-                    unlist %>%
-                    make.names(unique = T) %>% toupper()
+                      unlist %>%
+                      make.names(unique = T) %>% toupper()
 names(xinli.Thoc5) <- mapIds( org.Mm.eg.db, keys = as.character(xinli.genes$annotation$GeneID), 
                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
                       unlist %>%
                       make.names(unique = T) %>% toupper()
 
+yaof.HA2Z           <- apply(rnaseq.matrix.list[[9]][,1:2], 1, median) - 
+                       apply(rnaseq.matrix.list[[9]][,3:4], 1, median)
+
+names(yaof.HA2Z)    <- mapIds( org.Mm.eg.db, keys = as.character(yaofang.genes$annotation$GeneID), 
+                               column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                       unlist %>%
+                       make.names(unique = T) %>% toupper()
+
+#---
+# microarray data
 # microarray data analysis
 #---
 
@@ -1285,7 +1339,7 @@ names(GSE31080.1) <- GSE31080.data[,1] %>% unlist %>%
                      toupper() 
 GSE31080.2  <- as.matrix(GSE31080.data[,2:ncol(GSE31080.data)]) %>%
               apply(c(1,2),as.numeric) %>% 
-              {.[,3] - .[,4]}
+              {.[,4] - .[,3]}
 names(GSE31080.2) <- GSE31080.data[,1] %>% unlist %>%
                      make.names(unique = T) %>%
                      toupper()  
@@ -1360,7 +1414,7 @@ rna.seq.data.list    <- list( GSE38056,   GSE44461,   GSE51878.1,
 # second filtering approach
 #
 
-
+"
 setwd('E:\\FuWai\\wangli.lab\\vsmc_analysis')
 vsmc.pdgfDD.sec.df     <- read_tsv('PDGFDD_contract_mus',  col_names = FALSE)
 vsmc.pdgfDD.con.df     <- read_tsv('PDGFDD_synthetic_mus', col_names = FALSE)
@@ -1368,13 +1422,13 @@ vsmc.pdgfDD.con.df     <- read_tsv('PDGFDD_synthetic_mus', col_names = FALSE)
 vsmc.names         <- vsmc.pdgfDD.sec.df$X1 %>% toupper() %>%
                       union( vsmc.pdgfDD.con.df$X1 %>% toupper() ) %>% 
                       unique()
-
+"
 # first filtering approach, using lfc threshold
 
 names.func <- . %>% {names(.)[abs(.) > 0.58]}
 # the second filtering method, using predifined migration genes
 #---
-names.func <- . %>% {names(.)[ names(.) %in% vsmc.names]}
+#names.func <- . %>% {names(.)[ names(.) %in% vsmc.names]}
 
 rnaseq.common.names <- intersect( names(GSE38056), names(GSE44461) )%>%
                        intersect( names(GSE51878.1) ) %>%
@@ -1490,7 +1544,8 @@ samples.matrix.df <- data.frame( GSE38056    = GSE38056[correlation.names],
                                  GSE15841.3  = GSE15841.3[correlation.names],
                                  GSE15841.4  = GSE15841.4[correlation.names],
                                  GSE19909    = GSE19909[correlation.names],
-                                 GSE21403    = GSE21403[correlation.names]) 
+                                 GSE21403    = GSE21403[correlation.names],
+                                 yaof.HA2Z   = yaof.HA2Z[correlation.names]) 
 
 samples.names.df <- data.frame( GSE38056    = 'AngII',    
                                 GSE44461    = 'Tcf21', 
@@ -1552,11 +1607,14 @@ samples.names.df <- data.frame( GSE38056    = 'AngII',
                                 GSE15841.3  = 'TRAP.120',
                                 GSE15841.4  = 'TRAP.PTX.120',
                                 GSE19909    = 'fluid.stress',
-                                GSE21403    = 'IL-1b') 
+                                GSE21403    = 'IL-1b',
+                                yaof.HA2Z   = 'HA2Z.kd') 
 
 # this is guided by wangli
 #---
-selected.sample.names <- c('xinli.772', 'xinli.FBS','PDGF.BB','PDGF.DD','ox.LDL.1h','APOE.VE','Jag1','fluid.stress',
+#selected.sample.names <- c('xinli.772', 'xinli.FBS','PDGF.BB','PDGF.DD','ox.LDL.1h','APOE.VE','Jag1','fluid.stress',
+#                          'AngII', 'TNF.alpha','ROCK1.kd', 'OPG', 'CD9', 'Glucose' )
+selected.sample.names <- c('HA2Z.kd', 'xinli.FBS','PDGF.BB','PDGF.DD','ox.LDL.1h','APOE.VE','Jag1','fluid.stress',
                            'AngII', 'TNF.alpha','ROCK1.kd', 'OPG', 'CD9', 'Glucose' )
 final.result <- match(selected.sample.names,unlist(samples.names.df)) %>% 
                 {names(samples.names.df)[.]} %>%
@@ -1570,8 +1628,8 @@ table.pearson <- grid.newpage() %>%
                             cols = colnames(final.result) )} %>%
                  grid.draw()
 #color.bar    <- colorRampPalette(c('blue', 'white', 'red'))(100)
-color.bar    <- colorRampPalette(brewer.pal(10,'RdYlBu'))(100)
-pheatmap( final.result, cluster_rows = T, cluster_cols = T,
+color.bar    <- rev(colorRampPalette(brewer.pal(10,'RdYlBu'))(10))
+pheatmap( final.result, cluster_rows = F, cluster_cols = F,
           clustering_distance_rows = 'correlation', 
           clustering_distance_cols = 'correlation',
           cellwidth = 15, cellheight = 15,
@@ -1584,21 +1642,22 @@ d3heatmap( final.result, colors = 'RdYlBu', Colv = 'Rowv',
 Heatmap( final.result, name = 'VSMC migration sample correlation',
          column_title = 'sample names', row_title = 'sample names')
 
-
+"
 #
 # distrbution
-# 
+# Re-analysis: Contractile or Secretory phenotype?
+#---
 setwd('E:\\FuWai\\wangli.lab\\Others')
 vcms.markers       <- 'SM-markers.xlsx' # this data is manually curated
-vcms.dif.table     <- read.xlsx(vcms.markers)
-vcms.sec.table     <- read.xlsx(vcms.markers)
+vcms.dif.table     <- read.xlsx(vcms.markers, sheet = 'con')
+vcms.sec.table     <- read.xlsx(vcms.markers, sheet = 'sec')
 vsmc.dif.genename  <- vcms.dif.table$GeneSymbol
 vsmc.sec.genename  <- vcms.sec.table$GeneSymbol
                    
 
-thoc5.rpkm.symbols <- mapIds( org.Mm.eg.db, keys= as.character(gene.mouse$annotation$GeneID), 
+thoc5.rpkm.symbols <- mapIds( org.Mm.eg.db, keys= as.character(xinli.genes$annotation$GeneID), 
                               keytype = 'ENTREZID', column = 'SYMBOL') %>% make.names(unique = T)
-genes.thoc5.rpkm   <- gene.mouse %$% counts[,12:15] %>% DGEList(genes = gene.mouse$annotation) %>%
+genes.thoc5.rpkm   <- xinli.genes %$% counts[,5:8] %>% DGEList(genes = xinli.genes$annotation) %>%
                       rpkm(normalized.lib.sizes = TRUE, log = TRUE)
 
 thoc5.dge.tidy     <- list( Control = apply(genes.thoc5.rpkm[,1:2], 1, mean),
@@ -1611,23 +1670,24 @@ thoc5.dge.tidy     <- list( Control = apply(genes.thoc5.rpkm[,1:2], 1, mean),
 thoc5.dge.tidy[thoc5.dge.tidy$symbol %in% vsmc.dif.genename,'Class']   <- 2
 thoc5.dge.tidy[thoc5.dge.tidy$symbol %in% vsmc.sec.genename,'Class']   <- 3
 vsmc.dif.df          <- thoc5.dge.tidy[thoc5.dge.tidy$symbol %in% vsmc.dif.genename,]
-vsmc.sec.df          <- thoc5.dge.tidy[thoc5.dge.tidy$symbol %in% vsmc.dif.genename,]
+vsmc.sec.df          <- thoc5.dge.tidy[thoc5.dge.tidy$symbol %in% vsmc.sec.genename,]
 
 
 vsmc <- ggplot(data = thoc5.dge.tidy) +
-       ylab('Knockdown of Thoc5') +
-       geom_point(aes( x = Plus, y = Minus,
-                      color = as.factor(Class), size = as.factor(Class), alpha = as.factor(Class) ) )+
-       scale_size_manual(values = c(2, 2, 2), guide = FALSE) + 
-       scale_alpha_manual(values = c(1/200, 1, 1), guide = FALSE) + 
-       scale_colour_manual(name = 'gene groups',values = c('black', 'blue', 'red'), 
-                           labels = c('non-related genes','differentiation marker','secretory marker')) + 
-       geom_text_repel( aes(x = Plus, y = Minus), label = vsmc.dif.df[,'symbol'], 
-                  data = vsmc.dif.df,hjust = 1,vjust = 1, size = 2, col = 'blue') +
-       geom_text_repel( aes(x = Plus, y = Minus), label = vsmc.sec.df[,'symbol'], 
-                  data = vsmc.sec.df,hjust = 1,vjust = 1, size = 2, col = 'red') +
-       theme(legend.position = c(0.8, 0.2),legend.title.align = 0.5)
+        ylab('Knockdown of Thoc5') +
+        geom_point(aes( x = Plus, y = Minus,
+                        color = as.factor(Class), size = as.factor(Class), alpha = as.factor(Class) ) )+
+        scale_size_manual(values = c(1, 1, 2), guide = FALSE) + 
+        scale_alpha_manual(values = c(1/100, 1/50, 1), guide = FALSE) + 
+        scale_colour_manual(name = 'gene groups',values = c('black', 'blue', 'red'), 
+                            labels = c('non-related genes','differentiation marker','secretory marker')) + 
+        geom_text_repel( aes(x = Plus, y = Minus), label = vsmc.dif.df[,'symbol'], 
+                         data = vsmc.dif.df, size = 1.5, color = 'blue') +
+        geom_text_repel( aes(x = Plus, y = Minus), label = vsmc.sec.df[,'symbol'], 
+                         data = vsmc.sec.df,size = 2.5, color = 'red', fontface = 'bold') +
+        theme(legend.position = c(0.8, 0.8),legend.title.align = 0.5)
 
+"
 setwd(Rdata.output.dir)
 #save(samples.matrix.df, samples.names.df, file = 'xinli.sampleCorrelation.simple.Rdata')
 save.image('xinli.sampleCorrelation.Rdata')
