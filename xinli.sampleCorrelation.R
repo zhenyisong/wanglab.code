@@ -9,7 +9,7 @@
 
 # FBS
 # nohup R CMD BATCH /home/zhenyisong/biodata/wanglab/wangcode/xinli.sampleCorrelation.R &
-
+# b114b695fb8b82fb50a73e559e1e4646  xinli.sampleCorrelation.Rdata
 
 
 
@@ -1629,6 +1629,7 @@ table.pearson <- grid.newpage() %>%
                  grid.draw()
 #color.bar    <- colorRampPalette(c('blue', 'white', 'red'))(100)
 color.bar    <- rev(colorRampPalette(brewer.pal(10,'RdYlBu'))(10))
+color.bar    <- rev( heat.colors(5,alpha  = 1) )
 pheatmap( final.result, cluster_rows = F, cluster_cols = F,
           clustering_distance_rows = 'correlation', 
           clustering_distance_cols = 'correlation',
