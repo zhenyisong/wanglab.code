@@ -1,5 +1,7 @@
 # @author Yisong Zhen
-# @since 2017-07-10
+# @since   2017-07-10
+# @update  2017-08-22
+# nohup R CMD BATCH /home/zhenyisong/biodata/wanglab/wangcode/xinli.rnp.R &
 # in response to wang/yuan request
 # this old paper
 #
@@ -31,8 +33,8 @@ pkgs <- c( 'tidyverse','Rsubread','org.Mm.eg.db','edgeR',
            'openxlsx','pheatmap','gridExtra','ggrepel',
            'QuasR','annotate','clusterProfiler',
            'GGally','RColorBrewer','ggbio',
-           'cluster','factoextra','ggpubr',
-           'fitdistrplus', 'VennDiagram',
+           'cluster','factoextra','ggpubr', 'outliers',
+           'fitdistrplus', 'VennDiagram', 'vioplot',
            'Rsamtools', 'devtools','parallel',
            'GenomicAlignments', 'BiocParallel',
            'TxDb.Mmusculus.UCSC.mm10.knownGene',
@@ -48,14 +50,14 @@ pkgs <- c( 'tidyverse','Rsubread','org.Mm.eg.db','edgeR',
 # required in this project
 #---
 #install.lib <- lapply(pkgs, library, character.only = TRUE)
-install.lib <- lapply(pkgs, require, character.only = TRUE)
+load.lib <- lapply(pkgs, require, character.only = TRUE)
 
 # import data from my X1 desktop
 #---
 x1.runing.path <- file.path('D:\\wangli_data\\Rdata')
 setwd(x1.runing.path)
 load('xinliRNP.Rdata')
-load('multiple.xinli.Rdata')
+#load('multiple.xinli.Rdata')
 
 # copycat from
 #---
@@ -70,11 +72,11 @@ xinliRNP.output.dir     <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/
 xinliRNP.QC.dir         <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/xinli/quasR')
 
 xinliRNP.rawdata         <- file.path('/mnt/date/Sequencing/FastQ/20170705_LF_RNAseq_new')
-xinliRNP.files           <- list.files( path = xinliRNP.rawdata, pattern = "m_vsmc_.*$", 
+xinliRNP.files           <- list.files( path = xinliRNP.rawdata, pattern = 'm_vsmc_.*$', 
                                         all.files = FALSE, full.names  = TRUE, 
                                         recursive = FALSE, ignore.case = FALSE, include.dirs = F)
-read.1.files             <- xinliRNP.files[grep("R1",xinliRNP.files)]
-read.2.files             <- xinliRNP.files[grep("R2",xinliRNP.files)]
+read.1.files             <- xinliRNP.files[grep('R1',xinliRNP.files)]
+read.2.files             <- xinliRNP.files[grep('R2',xinliRNP.files)]
 
 xinliRNP.output.filenames<- basename(read.1.files) %>% 
                             sub(pattern = '_R1_001.fastq.gz', replacement = '') %>%
@@ -82,7 +84,7 @@ xinliRNP.output.filenames<- basename(read.1.files) %>%
 xinliRNP.sample.names    <- basename(read.1.files) %>% 
                             sub(pattern = '_R1_001.fastq.gz', replacement = '')
 
-sampleFile      <- tempfile(pattern = "zhen3temp", tmpdir = tempdir())
+sampleFile      <- tempfile(pattern = 'zhen3temp', tmpdir = tempdir())
 sample.file     <- data.frame( FileName1  = read.1.files,
                                FileName2  = read.2.files, 
                                SampleName = xinliRNP.sample.names)
@@ -97,14 +99,14 @@ setwd(xinliRNP.QC.dir)
 xinliRNP.qPorject <- qAlign( sampleFile,
                              genome,
                              auxiliaryFile = NULL,
-                             aligner = "Rbowtie",
+                             aligner = 'Rbowtie',
                              maxHits = 1,
                              paired  = 'fr',
                              splicedAlignment = FALSE,
                              snpFile = NULL,
-                             bisulfite = "no",
+                             bisulfite = 'no',
                              alignmentParameter = NULL,
-                             projectName = "qProject",
+                             projectName = 'qProject',
                              alignmentsDir = xinliRNP.QC.dir,
                              lib.loc  = NULL,
                              cacheDir = NULL,
@@ -124,7 +126,7 @@ align( index          = base.string,
        input_format   = "gzFASTQ", 
        type           = 'rna',
        output_file    = xinliRNP.output.filenames, 
-       output_format  = "BAM",
+       output_format  = 'BAM',
        PE_orientation = 'fr', 
        nthreads       = 20, 
        indels         = 1,
@@ -139,7 +141,7 @@ xinliRNP.genes      <- featureCounts( xinliRNP.output.filenames, useMetaFeatures
                                        requireBothEndsMapped  = TRUE,
                                        autosort               = TRUE,
                                        nthreads               = 20,
-                                       annot.inbuilt = "mm10", allowMultiOverlap = TRUE)
+                                       annot.inbuilt = 'mm10', allowMultiOverlap = TRUE)
 
 #-- caculate the and output the result
 #-- you mush restart here every time you
@@ -166,6 +168,47 @@ Ann$Chr      <- unlist( lapply(strsplit(Ann$Chr, ";"),
                         function(x) paste(unique(x), collapse = "|")))
 Ann$Chr      <- gsub("chr", "", Ann$Chr)
 
+
+# now read the xinli 772 & FBS data from start
+#---
+
+xinli.rawdata        <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/xinli/multiple')
+xinli.output.dir     <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/xinli/multiple/rsubread')
+xinli.files          <- list.files( path = xinli.rawdata, pattern = '*.fastq$', 
+                                    all.files = FALSE, full.names  = TRUE, 
+                                    recursive = FALSE, ignore.case = FALSE, include.dirs = F) %>% 
+                        {.[c(5:8,16:21)]}
+
+xinli.output.filenames <- basename(xinli.files) %>% sub(pattern = '_R1_001.fastq', replacement = '') %>%
+                             paste0(xinli.output.dir ,'/', . ,'.bam') 
+
+setwd(rsubread.index.lib)
+base.string           <- 'mm10'
+align( index          = base.string, 
+       readfile1      = xinli.files, 
+       input_format   = 'FASTQ', 
+       type           = 'rna',
+       output_file    = xinli.output.filenames, 
+       output_format  = 'BAM',
+       PE_orientation = 'fr', 
+       nthreads       = 20, 
+       indels         = 1,
+       maxMismatches  = 3,
+       phredOffset    = 33,
+       unique         = T )
+
+xinli.genes     <- featureCounts( xinli.output.filenames, 
+                                  useMetaFeatures = TRUE,
+                                  countMultiMappingReads = FALSE,
+                                  strandSpecific         = 0, 
+                                  isPairedEnd            = FALSE,
+                                  autosort               = TRUE,
+                                  nthreads               = 20,
+                                  annot.inbuilt          = 'mm10', 
+                                  GTF.featureType        = 'exon',
+                                  GTF.attrType           = 'gene_id',
+                                  allowMultiOverlap      = TRUE)
+
 # this the end to get the Ann, the gene annotation for this 
 # batch of RNA-seq data analysis
 #---
@@ -179,17 +222,20 @@ Ann$Chr      <- gsub("chr", "", Ann$Chr)
 # I assume that all RNA binding read counts is matched
 # total number is the same
 #---
-xinliRIP.rpkm <- xinliRNP.genes %$% counts %>% DGEList(genes = Ann) %>%
-                 rpkm(normalized.lib.sizes = TRUE, log = FALSE)
+xinliRIP.rpkm    <- xinliRNP.genes %$% counts %>% DGEList(genes = xinliRNP.genes$annotation) %>%
+                    rpkm(normalized.lib.sizes = TRUE, log = FALSE)
 colnames(xinliRIP.rpkm) <- c('input','thocs2','thocs5')
-
+xinliRNP.symbols <- mapIds( org.Mm.eg.db, keys = as.character(xinliRNP.genes$annotation$GeneID), 
+                            column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                    unlist %>%
+                    make.names(unique = T)
 xinliRIP.rpkm.df <- xinliRIP.rpkm %>% as.data.frame %>% 
-                    mutate(GeneSymbol = Ann$SYMBOL, EntrezID = Ann$GeneID) %>%
+                    mutate(GeneSymbol = xinliRNP.symbols, EntrezID = xinliRNP.genes$annotation$GeneID) %>%
                     dplyr::select(GeneSymbol, EntrezID, input, thocs2, thocs5)
 
 
 setwd("C:\\Users\\Yisong\\Desktop")
-write.xlsx(xinliRIP.rpkm.df , file = "rip.rpkm.xlsx", colNames = TRUE, borders = "columns")
+write.xlsx(xinliRIP.rpkm.df , file = 'rip.rpkm.xlsx', colNames = TRUE, borders = 'columns')
 
 # QC check for her positive and negative control
 #---
@@ -202,10 +248,10 @@ control.groups.df <- data.frame( gene.name = c('Tagln','Cnn1','Acta1', 'Myh11',
                                                'chr1','chr7','chr4','chr6','chr15','chr5') )
 control.match.id     <- match( as.character(control.groups.df$gene.name), 
                                xinliRIP.rpkm.df$GeneSymbol )
-control.groups.ratio <- control.groups.df %>% mutate(ratio2 = xinliRIP.rpkm.df[control.match.id,'thocs2']/
-                                                              xinliRIP.rpkm.df[control.match.id,'input'],
-                                                     ratio5 = xinliRIP.rpkm.df[control.match.id,'thocs5']/
-                                                              xinliRIP.rpkm.df[control.match.id,'input'])
+control.groups.ratio <- control.groups.df %>% mutate( ratio2 = xinliRIP.rpkm.df[control.match.id,'thocs2']/
+                                                               xinliRIP.rpkm.df[control.match.id,'input'],
+                                                      ratio5 = xinliRIP.rpkm.df[control.match.id,'thocs5']/
+                                                               xinliRIP.rpkm.df[control.match.id,'input'])
 
 control.ratio.table  <- tableGrob(control.groups.ratio, rows = NULL)
 grid.newpage()
@@ -464,14 +510,23 @@ xinliRIP.gene.names         <- xinliRIP.rpkm.sorted.ratio5 %$% GeneSymbol[1:gene
 #
 #---
 
-gene.thoc5.772              <- gene.mouse %$% counts[,12:15] %>%
+thoc5.772.symbols           <- mapIds( org.Mm.eg.db, keys = as.character(xinli.genes$annotation$GeneID), 
+                                       column = 'SYMBOL', keytype = 'ENTREZID', multiVals = 'first') %>% 
+                               unlist %>%
+                               make.names(unique = T)
+cell.lines                  <- factor(rep(c(1,2), 2), levels = 1:2, labels = c('C1','C2'))
+groups                      <- factor(c(1,1,2,2), levels = 1:2, labels = c('Control','Thoc5'))
+design                      <- model.matrix(~ 0 + groups + cell.lines);
+colnames(design)            <- c('Control','Thoc5','Batch')
+contrast.matrix             <- makeContrasts(Thoc5 - Control, levels = design)
+gene.thoc5.772              <- xinli.genes %$% counts[,5:8] %>%
                                DGEList() %>% calcNormFactors() %>%
                                voom(design = design) %>%
                                lmFit() %>%
                                contrasts.fit(contrast.matrix) %>%
                                eBayes() %>%
                                topTable(number = Inf, adjust.method = 'BH', sort.by = 'none') %>%
-                               mutate(symbol = Ann$SYMBOL)
+                               mutate(symbol = thoc5.772.symbols)
 summary(gene.thoc5.772)
 filter.lfc                  <- -0.58
 filter.pval                 <- 0.05
@@ -519,9 +574,14 @@ xinliRIP.rpkm.df <- xinliRIP.rpkm %>% as.data.frame %>%
                     dplyr::select(GeneSymbol, EntrezID, input, thoc2, thoc5)
 
 
-thoc5.symbols               <- mapIds( org.Mm.eg.db, keys= as.character(gene.mouse$annotation$GeneID), 
+thoc5.symbols               <- mapIds( org.Mm.eg.db, keys= as.character(xinli.genes$annotation$GeneID), 
                                        keytype = "ENTREZID", column = 'SYMBOL') %>% make.names(unique = T)
-gene.thoc5.772              <- gene.mouse %$% counts[,12:15] %>%
+cell.lines                  <- factor(rep(c(1,2), 2), levels = 1:2, labels = c('C1','C2'))
+groups                      <- factor(c(1,1,2,2), levels = 1:2, labels = c('Control','Thoc5'))
+design                      <- model.matrix(~ 0 + groups + cell.lines);
+colnames(design)            <- c('Control','Thoc5','Batch')
+contrast.matrix             <- makeContrasts(Thoc5 - Control, levels = design)
+gene.thoc5.772              <- xinli.genes %$% counts[,5:8] %>%
                                DGEList() %>% calcNormFactors() %>%
                                voom(design = design) %>%
                                lmFit() %>%
@@ -543,22 +603,171 @@ rip.exprs.whole   <- rip.exprs.tidy  %>%
                      dplyr::select(Ratio5) %>% 
                      mutate(Class = 3)
 
+
+# outlier.value     <- outlier(rip.exprs.whole %$% Ratio5 %>% unlist %>% {log(. + 1)})
+
+
 rip.exprs.class.df <- rbind(rip.exprs.up, rip.exprs.down) %>%
                       rbind(rip.exprs.whole) %>% mutate(Class = as.factor(Class))  
 
-rip.thoc5.boxplot   <- rip.exprs.class.df %>% 
-                       ggplot(aes(x = Class, y = log(Ratio5))) + 
+
+"
+comparision.1 <- rip.exprs.class.df %>% filter(Class != 2) %>% 
+                 wilcox.test(Ratio5 ~ Class, data = .)  %$% p.value %>%
+                 formatC(format = 'g', digits = 2)
+ 
+comparision.2 <- rip.exprs.class.df %>% filter(Class != 1) %>% 
+                 wilcox.test(Ratio5 ~ Class, data = .)  %$% p.value %>%
+                 formatC(format = 'g', digits = 2)
+comparision.3 <- rip.exprs.class.df %>% filter(Class != 3) %>% 
+                 wilcox.test(Ratio5 ~ Class, data = .)  %$% p.value %>%
+                 formatC(format = 'g', digits = 2)
+comparisions  <- p.adjust(c(comparision.1, comparision.2, comparision.3), method = 'bonferroni') %>%
+                 formatC(format = 'g', digits = 2)
+
+# find and exclude the extreme outlier
+# http://www.itl.nist.gov/div898/handbook/prc/section1/prc16.htm
+# maybe this method is argumentable
+# without knowing the distribution
+# https://stats.stackexchange.com/questions/7155/rigorous-definition-of-an-outlier
+#---
+
+IQ.logRatio5        <- rip.exprs.class.df %>%
+                       mutate(logRatio5 = log(Ratio5 + 1)) %$%
+                       {quantile(logRatio5,3/4) - quantile(logRatio5,1/4)}
+                    
+Q1.logRatio5        <- rip.exprs.class.df %>%
+                       mutate(logRatio5 = log(Ratio5 + 1)) %$%
+                       {quantile(logRatio5,1/4)}
+Q3.logRatio5        <- rip.exprs.class.df %>%
+                       mutate(logRatio5 = log(Ratio5 + 1)) %$%
+                       {quantile(logRatio5,3/4)}
+upper.outer.fence   <- Q3.logRatio5 + 1.5 * IQ.logRatio5
+rip.thoc5.vioplot   <- rip.exprs.class.df %>%
+                       mutate(logRatio5 = log(Ratio5 + 1)) %>%
+                       filter(logRatio5 < upper.outer.fence) %>%
+                       ggplot(aes(x = Class, y = logRatio5)) + 
                        geom_violin(trim = T) +
                        stat_summary( fun.data = 'mean_sdl', fun.args = list(mult = 1),
-                                     geom = 'pointrange', color = 'red') +
-                       xlab('Thoc5 RIP ratio\n according to expression change direction') +
-                       ylab('Binding log(RPKM ratio): treat/input')
+                                     geom = 'pointrange', color = 'blue') +
+                       scale_x_discrete(labels = c('up','down','all')) +
+                       xlab('Thoc5 RIP ratio (log-transfromed)\n according to expression change direction') +
+                       ylab('Binding affinity(RPKM-log transformed ratio): treat/input') +
+                       geom_segment(rip.exprs.class.df, aes(x = 1, y = 4, xend = 2, yend = 4) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 1, y = 3.5, xend = 1, yend = 4) )  +
+                       geom_segment(rip.exprs.class.df, aes(x = 2, y = 3.5, xend = 2, yend = 4) )  +
+                       geom_text( aes(x = 1.5, y = 4.4), 
+                                  label = paste('p','=', comparisions[1], sep = ' '), 
+                                  vjust = 'middle')          +
+                       geom_segment(rip.exprs.class.df, aes(x = 2, y = 5, xend = 3, yend = 5) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 2, y = 4.5, xend = 2, yend = 5) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 3, y = 4.5, xend = 3, yend = 5) ) +
+                       geom_text( aes(x = 2.5, y = 5.4), 
+                                  label = paste('p','=', comparisions[2], sep = ' '), 
+                                  vjust = 'middle')           +
+                       geom_segment(rip.exprs.class.df, aes(x = 1, y = 6, xend = 3, yend = 6) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 1, y = 5.5, xend = 1, yend = 6) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 3, y = 5.5, xend = 3, yend = 6) ) +
+                       geom_text( aes(x = 2, y = 6.4), 
+                                  label = paste('p','=', comparisions[3], sep = ' '), 
+                                  vjust = 'middle')  +
+                       theme_classic()
 
 
-rip.exprs.class.df %>% filter(Class != 2) %>% wilcox.test(Ratio5 ~ Class, data = .)  %$% p.value
-rip.exprs.class.df %>% filter(Class != 1) %>% wilcox.test(Ratio5 ~ Class, data = .)  %$% p.value
 
+rip.thoc5.boxplot   <- rip.exprs.class.df %>%
+                       mutate(logRatio5 = log(Ratio5 + 1)) %>%
+                       filter(logRatio5 < upper.outer.fence) %>%
+                       ggplot(aes(x = Class, y = logRatio5)) + 
+                       geom_boxplot() +
+                       scale_x_discrete(labels = c('up','down','all')) +
+                       xlab('Thoc5 RIP ratio (log-transfromed)\n according to expression change direction') +
+                       ylab('Binding affinity(RPKM-log transformed ratio): treat/input') +
+                       geom_segment(rip.exprs.class.df, aes(x = 1, y = 3, xend = 2, yend = 3) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 1, y = 2.8, xend = 1, yend = 3) )  +
+                       geom_segment(rip.exprs.class.df, aes(x = 2, y = 2.8, xend = 2, yend = 3) )  +
+                       geom_text( aes(x = 1.5, y = 3.4), 
+                                  label = paste('p','=', comparisions[1], sep = ' '), 
+                                  vjust = 'middle')          +
+                       geom_segment(rip.exprs.class.df, aes(x = 2, y = 2.5, xend = 3, yend = 2.5) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 2, y = 2.3, xend = 2, yend = 2.5) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 3, y = 2.3, xend = 3, yend = 2.5) ) +
+                       geom_text( aes(x = 2.5, y = 3), 
+                                  label = paste('p','=', comparisions[2], sep = ' '), 
+                                  vjust = 'middle')           +
+                       geom_segment(rip.exprs.class.df, aes(x = 1, y = 4, xend = 3, yend = 4) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 1, y = 3.8, xend = 1, yend = 4) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 3, y = 3.8, xend = 3, yend = 4) ) +
+                       geom_text( aes(x = 2, y = 4.4), 
+                                  label = paste('p','=', comparisions[3], sep = ' '), 
+                                  vjust = 'middle')  +
+                       theme_classic()
+"                   
 
+# using the vioplot and only compare down vs. up
+# 2017-09-04
+
+comparision.final   <- rip.exprs.class.df %>% filter(Class != 3) %>% 
+                       wilcox.test(Ratio5 ~ Class, data = .)  %$% p.value %>%
+                       formatC(format = 'g', digits = 2)
+
+IQ.logRatio5        <- rip.exprs.class.df %>%
+                       filter(Class != 3) %>%
+                       mutate(logRatio5 = log(Ratio5 + 1)) %$%
+                       {quantile(logRatio5,3/4) - quantile(logRatio5,1/4)}
+                    
+Q1.logRatio5        <- rip.exprs.class.df %>%
+                       filter(Class != 3) %>%
+                       mutate(logRatio5 = log(Ratio5 + 1)) %$%
+                       {quantile(logRatio5,1/4)}
+Q3.logRatio5        <- rip.exprs.class.df %>%
+                       filter(Class != 3) %>%
+                       mutate(logRatio5 = log(Ratio5 + 1)) %$%
+                       {quantile(logRatio5,3/4)}
+upper.outer.fence   <- Q3.logRatio5 + 1.5 * IQ.logRatio5
+
+rip.thoc5.vioplot   <- rip.exprs.class.df %>%
+                       mutate(logRatio5 = log(Ratio5 + 1)) %>%
+                       filter(logRatio5 < upper.outer.fence) %>%
+                       filter(Class != 3 ) %>%
+                       ggplot(aes(x = Class, y = logRatio5)) + 
+                       geom_violin(trim = T, aes(fill = Class), show.legend = F, scale = 'count' ) +
+                       stat_summary( fun.data = 'mean_sdl', fun.args = list(mult = 1),
+                                     geom = 'pointrange', color = 'blue') +
+                       scale_x_discrete(labels = c('up','down')) +
+                       xlab('Thoc5 RIP ratio (log-transfromed)\n according to expression change direction') +
+                       ylab('Binding affinity(RPKM-log transformed ratio): treat/input') +
+                       geom_segment(rip.exprs.class.df, aes(x = 1, y = 2.5, xend = 2, yend = 2.5) ) +
+                       geom_segment(rip.exprs.class.df, aes(x = 1, y = 2.3, xend = 1, yend = 2.5) )  +
+                       geom_segment(rip.exprs.class.df, aes(x = 2, y = 2.3, xend = 2, yend = 2.5) )  +
+                       geom_text( aes(x = 1.5, y = 2.7), 
+                                  label = paste('p','=', comparision.final, sep = ' '), 
+                                  vjust = 'middle')          +
+                       theme_classic()
+
+# traditional methods, deprecated!!!
+# boxplot(logRatio5 ~ Class, data = ., outline = F)
+#---
+"
+rip.boxplot   <- rip.exprs.class.df %>%
+                 mutate(logRatio5 = log(Ratio5 + 1)) %>%
+                 boxplot(logRatio5 ~ Class, data = ., outline = F)
+up.vioplot    <- rip.exprs.class.df %>%
+                 mutate(logRatio5 = log(Ratio5 + 1)) %>%
+                 filter(Class == 1) %>% dplyr::select(logRatio5) %>%
+                 unlist() %>% as.vector
+down.vioplot  <- rip.exprs.class.df %>%
+                 mutate(logRatio5 = log(Ratio5 + 1)) %>%
+                 filter(Class == 2) %>% dplyr::select(logRatio5) %>%
+                 unlist() %>% as.vector
+
+whole.vioplot <- rip.exprs.class.df %>%
+                 mutate(logRatio5 = log(Ratio5 + 1)) %>%
+                 filter(Class == 3) %>% dplyr::select(logRatio5) %>%
+                 unlist() %>% as.vector
+
+vioplot(up.vioplot, down.vioplot, whole.vioplot)
+"
 
 "
 1）分析36个合并基因，是否在FBS数据定义的分泌型和收缩型基因中富集；
@@ -571,6 +780,84 @@ rip.exprs.class.df %>% filter(Class != 1) %>% wilcox.test(Ratio5 ~ Class, data =
 
 我再想想。
 "
+
+# I move the snnipet up
+#---
+
+"
+xinli.rawdata        <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/xinli/multiple')
+xinli.output.dir     <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/xinli/multiple/rsubread')
+xinli.files          <- list.files( path = xinli.rawdata, pattern = '*.fastq$', 
+                                    all.files = FALSE, full.names  = TRUE, 
+                                    recursive = FALSE, ignore.case = FALSE, include.dirs = F) %>% 
+                        {.[c(5:8,16:21)]}
+
+xinli.output.filenames <- basename(xinli.files) %>% sub(pattern = '_R1_001.fastq', replacement = '') %>%
+                             paste0(xinli.output.dir ,'/', . ,'.bam') 
+
+setwd(rsubread.index.lib)
+base.string           <- 'mm10'
+align( index          = base.string, 
+       readfile1      = xinli.files, 
+       input_format   = 'FASTQ', 
+       type           = 'rna',
+       output_file    = xinli.output.filenames, 
+       output_format  = 'BAM',
+       PE_orientation = 'fr', 
+       nthreads       = 20, 
+       indels         = 1,
+       maxMismatches  = 3,
+       phredOffset    = 33,
+       unique         = T )
+
+xinli.genes     <- featureCounts( xinli.output.filenames, 
+                                  useMetaFeatures = TRUE,
+                                  countMultiMappingReads = FALSE,
+                                  strandSpecific         = 0, 
+                                  isPairedEnd            = FALSE,
+                                  autosort               = TRUE,
+                                  nthreads               = 20,
+                                  annot.inbuilt          = 'mm10', 
+                                  GTF.featureType        = 'exon',
+                                  GTF.attrType           = 'gene_id',
+                                  allowMultiOverlap      = TRUE)
+"
+
+batch.effect          <- factor(c(1,2,1,2), levels = 1:2, labels = c('cell1','cell2'))
+groups                <- factor(c(1,1,2,2), levels = 1:2, labels = c('Control','FBS'))
+design                <- model.matrix(~ 0 + groups + batch.effect);
+colnames(design)      <- c('Control','FBS','Batch')
+contrast.matrix       <- makeContrasts(FBS - Control, levels = design)
+
+xinli.FBS             <- xinli.genes %$% counts[,1:4] %>%
+                         DGEList() %>% calcNormFactors() %>%
+                         voom(design = design) %>%
+                         lmFit() %>%
+                         contrasts.fit(contrast.matrix) %>%
+                         eBayes() %>%
+                         topTable(number = Inf, adjust.method = 'BH', sort.by = 'none')
+
+
+core.36.GeneIDs         <- mapIds( org.Mm.eg.db, keys = commmon.RIP, 
+                                 column = 'ENTREZID', keytype = 'SYMBOL', multiVals = 'first') %>% 
+                           unlist %>% unique() %>% na.omit
+FBS.logFC               <- xinli.FBS$logFC
+names(FBS.logFC)        <- xinli.genes$annotation$GeneID
+FBS.logFC               <- sort(FBS.logFC, decreasing = TRUE)
+
+core2genes              <- data.frame( diseaseId = rep('coreRIP',length(core.36.GeneIDs)), 
+                                       geneId    = core.36.GeneIDs, check.names = TRUE)
+
+core2.GSEA              <- GSEA( FBS.logFC, TERM2GENE = core2genes, 
+                                 nPerm = 10^5, maxGSSize = 5000, pvalueCutoff = 1)
+
+result.GSEA.table       <- grid.newpage() %>% {summary(core2.GSEA)} %>% as.data.frame %>%
+                           dplyr::select(-(c(core_enrichment, leading_edge, ID))) %>%
+                           tableGrob(rows = NULL) %>%
+                           grid.draw()
+
+gseaplot(core2.GSEA, geneSetID = 'coreRIP')
+
 
 # Covergae figure
 #---
@@ -630,7 +917,7 @@ thocs5.cov   <- autoplot( 'thocs5.bam', which = wh) + ylim(0,100) + ylab('thocs5
 input.cov    <- autoplot( 'input.bam', which = wh ) + ylim(0,100) + ylab('input')
 tracks(gene.model, thocs5.cov, input.cov, heights = c(1,2,2))
 
-session_info()
+program.environ <- session_info()
 setwd(xinliRNP.output.dir)
 save.image('xinliRNP.Rdata')
 quit('no')

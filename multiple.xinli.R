@@ -22,6 +22,16 @@ library(tidyverse)
 library(rat2302.db)
 library(affy)
 library(annotate)
+library(scatterplot3d)
+library(rgl)
+library(graph3d)
+library(magrittr)
+
+#library(devtools)
+#install_github('kassambara/graph3d')
+#install.packages("rgl")
+
+
 
 setwd('D:\\wangli_data\\Rdata')
 #save.image('multiple.xinli.Rdata')
@@ -222,8 +232,8 @@ Ann$Chr  <- unlist( lapply(strsplit(Ann$Chr, ";"),
                     function(x) paste(unique(x), collapse = "|")))
 Ann$Chr  <- gsub("chr", "", Ann$Chr)
 
-gene.exprs <- DGEList(counts = gene.counts, genes = Ann)
-gene.exprs <- calcNormFactors(gene.exprs)
+gene.exprs     <- DGEList(counts = gene.counts, genes = Ann)
+fbs.gene.exprs <- calcNormFactors(gene.exprs)
 
 
 
@@ -306,24 +316,21 @@ fviz_cluster( clara.res,
 # https://support.bioconductor.org/p/83690/
 # https://support.bioconductor.org/p/54447/
 
-dge.tmm           <- t(t(gene.exprs$counts) * gene.exprs$samples$norm.factors)
-dge.tmm.counts    <- apply(dge.tmm, 2, as.integer)
-rownames(dge.tmm.counts) <- Ann$GeneID
 batch.effect <- factor(c(1,2,1,2), levels = 1:2, labels = c('cell1','cell2'))
 groups       <- factor(c(1,1,2,2), levels = 1:2, labels = c('Control','FBS'))
 design       <- model.matrix(~ 0 + groups + batch.effect);
 colnames(design) <- c('Control','FBS','Batch')
 contrast.matrix  <- makeContrasts(FBS - Control, levels = design)
-d.norm           <- voom(dge.tmm.counts, design = design)
+d.norm           <- voom(fbs.gene.exprs, design = design)
 fit              <- lmFit(d.norm, design)
 fit2             <- contrasts.fit(fit,contrast.matrix)
-fit2             <- eBayes(fit2)
-FBS.sm.phenotype.result      <- topTable(  fit2, 
+fbs.fit2             <- eBayes(fit2)
+FBS.sm.phenotype.result      <- topTable(  fbs.fit2, 
                                            number        = Inf, 
                                            adjust.method = "BH", 
                                            sort.by       = "p",
                                            p.value       = 0.05,
-                                           lfc           = 2);
+                                           lfc           = 1.5);
 
 
 # setwd("C:\\Users\\Yisong\\Desktop")
@@ -601,8 +608,11 @@ fit                   <- lmFit(exprs.data, design)
 contrast.matrix       <- makeContrasts(PDGFBB - Control,levels = design)
 fit2                  <- contrasts.fit(fit, contrast.matrix)
 fit2                  <- eBayes(fit2)
+
+# I p-hacking the p value from 0.58 - 2 -4 and no significant
+#---
 result                <- topTable(fit2, coef = 1, adjust = "BH", number = Inf,
-                                  p.value = 0.05, lfc = 0.58)
+                                  p.value = 0.05, lfc = 4)
 
 migration.genes       <- na.omit(result$ID)
 
@@ -638,9 +648,20 @@ gene.result           <- topTable(  fit2,
                                     number        = Inf, 
                                     adjust.method = "BH", 
                                     sort.by       = "p",
-                                    );
-
-                      
+ 
+"                                   )
+gene.thoc5.772        <- gene.mouse %$% counts[,12:15] %>%
+                         DGEList() %>% calcNormFactors() %>%
+                         voom(design = design) %>%
+                         lmFit() %>%
+                         contrasts.fit(contrast.matrix) %>%
+                         eBayes() %>%
+                         topTable(number = Inf, adjust.method = 'BH')
+"
+                         
+#
+# please re-check this code.!
+migration.genes          <- na.omit(result$ID)                      
 migration.db             <- gene.result$GeneID[gene.result$SYMBOL %in% migration.genes]
 pathway.genelist         <- gene.result$logFC
 names(pathway.genelist)  <- gene.result$GeneID
@@ -659,6 +680,8 @@ migration2gene           <- data.frame( diseaseId = unlist(as.character(rep('fbs
                                         geneId    = unlist(as.integer(fbs.migration.db)), check.names = TRUE)
 
 fbs.migration.GSEA       <- GSEA(pathway.genelist, TERM2GENE = migration2gene, maxGSSize = 5000, pvalueCutoff = 1)
+gseaplot(fbs.migration.GSEA, 'fbs.migration')
+
 #preparing geneSet collections...
 #GSEA analysis...
 #no term enriched under specific pvalueCutoff...
@@ -700,6 +723,76 @@ blackgoat <- function (pvalue, lfc.value, fit.param, pathway.whole) {
 }
 
 result.vec <- blackgoat(pvalue, lfc.value, fit2, pathway.genelist)
+
+
+point.color <- c('gray76','chartreuse1')
+point.color <- point.color[as.numeric(result.vec[,3] <= 0.05) + 1 ]
+scatterplot3d( result.vec, pch = 16, xlab = 'p.value', angle = 35,
+               ylab = 'log.fold.change', zlab = 'gsea.pvalue',
+               type = 'p', scale.y = 0.8, color = point.color)
+
+rgl_init()
+
+plot3d( x = result.vec[,1], y = result.vec[,2], z = result.vec[,3], col = 'blue',
+        type = 'p', xlab = 'edgeR.p.value', ylab = 'edgeR.lfc', zlab = 'gsea.pvalue',
+        box = FALSE)
+
+##colnames(result.vec) <- c('pvalue','lfc')
+##ggplot(data = as.data.frame(result.vec), aes(x = pvalue, y = lfc)) + geom_point()
+
+
+# reverse the GSEA analysis
+# using the Thocs5 as the feature source
+#  in this way, I selected and set the threshold to 
+#  get these feature genes from DEG analysis
+# mapping to FBS treated data, this is as the whole set
+#---
+
+gene                  <- gene.mouse
+gene.counts           <- gene$counts[,12:15]
+gene.ids              <- gene$annotation$GeneID
+columns               <- c("ENTREZID","SYMBOL","MGI","GENENAME");
+GeneInfo              <- AnnotationDbi::select( org.Mm.eg.db, keys= as.character(gene.ids), 
+                                keytype = "ENTREZID", columns = columns);
+m                     <- match(gene$annotation$GeneID, GeneInfo$ENTREZID);
+Ann                   <- cbind( gene$annotation[, c("GeneID", "Chr","Length")],
+                                       GeneInfo[m, c("SYMBOL", "MGI","GENENAME")]);
+                      
+Ann$Chr               <- unlist( lapply(strsplit(Ann$Chr, ";"), 
+                                 function(x) paste(unique(x), collapse = "|")))
+gene.exprs.772        <- gene.counts %>% DGEList(genes = Ann) %>% calcNormFactors
+design                <- model.matrix(~ 0 + groups + cell.lines);
+colnames(design)      <- c('Control','Thoc5','Batch')
+contrast.matrix       <- makeContrasts(Thoc5 - Control, levels = design)
+                      
+gene.reverse.772      <- gene.exprs.772 %>% voom(design = design) %>% lmFit() %>%
+                         contrasts.fit(contrast.matrix) %>% 
+                         eBayes() %>%
+                         topTable( number = Inf)
+
+fbs.reverse.result       <- topTable(fbs.fit2, number= Inf)
+
+
+whole.reverse.set        <- fbs.reverse.result %>% arrange(desc(logFC)) %$% logFC
+names(whole.reverse.set) <- fbs.reverse.result %$% GeneID             
+
+migration.reverse.set    <- gene.reverse.772 %>% filter(logFC > 0.58 & P.Value < 0.05) %$% GeneID
+
+migration.reverse2gene   <- data.frame( diseaseId = rep('smc',length(migration.reverse.set)) ), 
+                                        geneId    = migration.reverse.set, check.names = TRUE)
+migration.reverseGSEA    <- GSEA( whole.reverse.set, TERM2GENE = migration.reverse2gene,
+                                  maxGSSize = 5000, pvalueCutoff = 1)
+
+gseaplot(migration.reverseGSEA, 'smc')
+# migration DB using the FBS data xinli, RNA-seq
+#---
+fbs.migration.db         <- rownames(FBS.sm.phenotype.result)
+migration2gene           <- data.frame( diseaseId = unlist(as.character(rep('fbs.migration',length(fbs.migration.db)))), 
+                                        geneId    = unlist(as.integer(fbs.migration.db)), check.names = TRUE)
+
+fbs.migration.GSEA       <- GSEA(pathway.genelist, TERM2GENE = migration2gene, maxGSSize = 5000, pvalueCutoff = 1)
+gseaplot(fbs.migration.GSEA, 'fbs.migration')
+
 
 # secretory gene heatmap
 

@@ -88,7 +88,7 @@ library(GGally)
 library(reshape)
 
 
-setwd("C:\\Users\\Yisong\\Desktop")
+setwd("D:\\wangli_data\\Rdata")
 #setwd("/home/zhenyisong/data/cardiodata")
 load("maturation.update.Rdata")
 #load("GSE1479.Rdata")

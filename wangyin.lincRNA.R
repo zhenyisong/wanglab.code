@@ -28,7 +28,8 @@
 pkgs         <- c( 'tidyverse','Rsubread', 'tools', 'QuasR','DiagrammeR',
                    'edgeR', 'limma', 'DESeq2', 'fastqcr','bamsignals',
                    'Rsamtools', 'org.Hs.eg.db', 'openxlsx', 'gridExtra',
-                   'grid', 'rtracklayer',
+                   'grid', 'rtracklayer', 'huex10sttranscriptcluster.db',
+                   'oligo','annotate', 'pd.huex.1.0.st.v2',
                    'BSgenome.Hsapiens.UCSC.hg38')
 load.lib     <- lapply(pkgs, require, character.only = TRUE)
 
@@ -401,6 +402,49 @@ encode.genes.gencode <- featureCounts(  encode.output.files,
 #---
 gencode.GRCh38.human    <- import(lncRmRNA.GRCh38.GTF.file)twd(Rdata.output.dir)
 
+
+# to check the data pattern in wang lncRNA design
+# using the washingU ,murry data set the golden standard?
+# esc,  mesoderm( cardiac mesoderm?), cardiac progenitor stage  , defferentiation stages?
+# wang yin data lack this stage, I am not sure why he design such such way.
+#---
+
+# to compare and validate the wangyin data with
+# murry data set which was published in CELL
+# data source:
+# GSE19090 
+# [HuEx-1_0-st] Affymetrix Human Exon 1.0 ST Array
+#
+#---
+
+
+GSE19090.rawdata   <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/wangyin/publicdata/GSE19090')
+setwd(GSE19090.rawdata)
+GSE19090.rma       <- list.files( getwd(), pattern = '\\.CEL|\\.CEL\\.gz', 
+                                  full.names = TRUE, ignore.case = TRUE) %>% 
+                      read.celfiles(celPath = ., pkgname = 'pd.huex.1.0.st.v2') %>%
+                      oligo::rma(target = 'core')
+GSE19090.symbols          <- featureNames(GSE19090.rma) %>% 
+                             {mapIds( huex10sttranscriptcluster.db, 
+                                      column = 'SYMBOL', keys = ., keytype = 'PROBEID',
+                                      multiVals = 'first')} %>%
+                             make.names(unique = T)
+GSE19090.exprs            <- exprs(GSE19090.rma)
+colnames(GSE19090.exprs)  <- c( 'H7.T5.1','H7.T5.2','H7.T9.1','H7.T9.2','H7.T14.1',
+                                'H7.T14.2', 'H7.T2.1','H7.T2.2','H7.T0.1','H7.T0.2')
+rownames(GSE19090.exprs)  <- GSE19090.symbols
+
+
+# GSE58363
+# PMID: 25296024
+# Early patterning and specification of cardiac 
+# progenitors in gastrulating mesoderm. Elife 2014 
+# mouse
+# publication used the NONCODE annotation
+# PE
+# ---
+
+setwd(Rdata.output.dir)
 save.image('wangyin170801.Rdata')
 quit('no')
 
@@ -638,6 +682,10 @@ gene.pattern.ggplot <- time.point.rpkm %>%
              
 
 gene.pattern.ggplot
+
+
+
+
                
 
 

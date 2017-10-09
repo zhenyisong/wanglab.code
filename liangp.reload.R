@@ -246,7 +246,6 @@ pca.p3.groups          <- c('WT.H9.Basal-3','WT.H9.Basal-7','WT.H9.PMA-4','WT.H9
 dev.off()
 heatmap( cor(liangp.p3.vst.filtered), 
          labRow = pca.p3.groups, labCol = pca.p3.groups)
-
 plot(liangp.p3.pca$x[,c(1,2)], ylim = c(-80,45),xlim = c(-90,180))
 text( liangp.p3.pca$x[,1], liangp.p3.pca$x[,2], 
       labels = pca.p3.groups , cex = 0.5, pos = 3, adj = c(0,1))
@@ -871,7 +870,7 @@ p2.2.df <- liangp.wp2.result.1 %>%
            filter(abs(logFC) > 0.58) %>%
            filter(SYMBOL != '')
 
-p1.geneID <- inner_join( liangp.wp1.result.1 %>% 
+p1.geneID   <- inner_join( liangp.wp1.result.1 %>% 
                          filter(P.Value > 0.05) %>%
                          filter(abs(logFC) < 0.58) %>%
                          filter(SYMBOL != ''),
@@ -881,6 +880,16 @@ p1.geneID <- inner_join( liangp.wp1.result.1 %>%
                          filter(SYMBOL != ''),
                          by = 'SYMBOL') %>% dplyr::select(GeneID.x) %>%
                          unlist
+
+p1.geneID.df <- inner_join( liangp.wp1.result.1 %>% 
+                         filter(P.Value > 0.05) %>%
+                         filter(abs(logFC) < 0.58) %>%
+                         filter(SYMBOL != ''),
+                         liangp.wp1.result.2 %>% 
+                         filter(P.Value < 0.05) %>%
+                         filter(abs(logFC) > 0.58) %>%
+                         filter(SYMBOL != ''),
+                         by = 'SYMBOL')
 
 p2.geneID <- inner_join( liangp.wp2.result.1 %>% 
                          filter(P.Value > 0.05) %>%
@@ -892,6 +901,16 @@ p2.geneID <- inner_join( liangp.wp2.result.1 %>%
                          filter(SYMBOL != ''),
                          by = 'SYMBOL') %>% dplyr::select(GeneID.x) %>%
                          unlist
+
+p2.geneID.df <- inner_join( liangp.wp2.result.1 %>% 
+                         filter(P.Value > 0.05) %>%
+                         filter(abs(logFC) < 0.58) %>%
+                         filter(SYMBOL != ''),
+                         liangp.wp2.result.2 %>% 
+                         filter(P.Value < 0.05) %>%
+                         filter(abs(logFC) > 0.58) %>%
+                         filter(SYMBOL != ''),
+                         by = 'SYMBOL') 
 
 liangp.p1.kegg.tidy      <- enrichKEGG( p1.geneID, 
                                         organism = 'human', 
@@ -1002,10 +1021,15 @@ addWorksheet(liangp.wb, 'H9.CIB1.KO - H9.CIB1.PMA')
 addWorksheet(liangp.wb, 'WT.H9.Basal - WT.H9.PMA-II')
 
 
+
+
 addWorksheet(liangp.wb, 'p1.kegg')
 addWorksheet(liangp.wb, 'p1.GO')
 addWorksheet(liangp.wb, 'p2.kegg')
 addWorksheet(liangp.wb, 'p2.GO')
+
+addWorksheet(liangp.wb, 'p1.positive.set')
+addWorksheet(liangp.wb, 'p2.positive.set')
 
 writeData(liangp.wb, sheet = 1, p1.1.df )
 writeData(liangp.wb, sheet = 2, p1.2.df )
@@ -1015,7 +1039,9 @@ writeData(liangp.wb, sheet = 5, liangp.p1.kegg.df )
 writeData(liangp.wb, sheet = 6, liangp.p1.GO.df )
 writeData(liangp.wb, sheet = 7, liangp.p2.kegg.df )
 writeData(liangp.wb, sheet = 8, liangp.p2.GO.df )
-saveWorkbook(liangp.wb, 'liangp.2017-08-15.xlsx', overwrite = TRUE)
+writeData(liangp.wb, sheet = 9, p1.geneID.df )
+writeData(liangp.wb, sheet = 10, p2.geneID.df )
+saveWorkbook(liangp.wb, 'liangp.2017-08-16.xlsx', overwrite = TRUE)
 
 
 # full samples normliaztion and vsn

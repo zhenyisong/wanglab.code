@@ -25,3 +25,5 @@ ssh-keygen -b 2048
 # chmod 644 ~/.ssh/publickey.pub
 
 ssh-copy-id -i ~/.ssh/id_rsa.pub  zhenyisong@172.31.202.11
+
+#ssh-copy-id -i ~/.ssh/id_rsa.pub  zhenyisong@10.8.8.56

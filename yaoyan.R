@@ -707,7 +707,9 @@ ks.test(human.atrium.qc.matrix, human.ventricle.qc.matrix)
 # aging validation
 # human aging dataset was downloaded from
 # http://www.senescence.info/
+# aging information
 #
+#---
 setwd('E:\\FuWai\\wangli.lab\\yaoyan')
 human.aging.pub   <- read.csv('genage_human.csv', header = TRUE, stringsAsFactors = FALSE)
 human.aging.names <- human.aging.pub$symbol
@@ -730,10 +732,13 @@ Ann$Chr      <- gsub("chr", "", Ann$Chr)
 gene.exprs   <- DGEList(counts = gene.counts, genes = Ann)
 gene.exprs   <- calcNormFactors(gene.exprs)
 
+aging.rpkm.mRNA           <- rpkm(gene.exprs, log = TRUE)
+rownames(aging.rpkm.mRNA) <- make.names(Ann$SYMBOL, unique = TRUE)
+
 aging.group  <- factor(rep(1:4, each = 3), levels = 1:4, labels = c('AF40','AF50','AF60','AF70'));
 design       <- model.matrix(~ 0 + aging.group );
 colnames(design) <- levels(aging.group)
-contrast.matrix  <- makeContrasts( AF60 - AF40, AF70 - AF50, levels = design)
+contrast.matrix  <- makeContrasts( AF60 - AF40, AF70 - AF40, levels = design)
 d.norm           <- voom(gene.exprs, design = design)
 fit              <- lmFit(d.norm, design)
 fit2             <- contrasts.fit(fit,contrast.matrix)
@@ -763,9 +768,25 @@ human.aging.geneID        <- aging.result.1$GeneID[aging.result.1$SYMBOL %in% hu
 
 aging.pathway.list <-  data.frame( Term = unlist(rep('aging.pathway', length(human.aging.geneID))), 
                                              Name   = unlist(human.aging.geneID))
-aging.1.result      <- GSEA(aging.whole.set.1 ,TERM2GENE = aging.pathway.list, maxGSSize = 1000, minGSSize = 8 )
+aging.1.result      <- GSEA(aging.whole.set.1 ,TERM2GENE = aging.pathway.list, maxGSSize = 1000, minGSSize = 8,pvalueCutoff = 1 )
 
-gseaplot(aging.1.result, "aging.pathway")
+human.gsea.figure1B    <- gseaplot(aging.1.result, "aging.pathway")
+
+
+#
+# AF40 ~ AF70
+#---
+aging.whole.set.2         <- aging.result.2$logFC
+names(aging.whole.set.2)  <- aging.result.2$GeneID
+aging.whole.set.2         <- sort(aging.whole.set.2, decreasing = TRUE)
+
+human.aging.geneID        <- aging.result.1$GeneID[aging.result.2$SYMBOL %in% human.aging.names]
+
+aging.pathway.list <-  data.frame( Term = unlist(rep('aging.pathway', length(human.aging.geneID))), 
+                                             Name   = unlist(human.aging.geneID))
+aging.2.result      <- GSEA(aging.whole.set.2 ,TERM2GENE = aging.pathway.list, maxGSSize = 1000, minGSSize = 8, pvalueCutoff = 1 )
+
+gseaplot(aging.2.result, "aging.pathway")
 
 intersect(union(aging.result.1.names[[1]],aging.result.2.names[[1]]),human.aging.names)
 intersect(aging.result.1.names[[1]],aging.result.2.names[[1]])

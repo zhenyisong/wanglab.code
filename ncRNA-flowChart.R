@@ -1,5 +1,5 @@
 library(DiagrammeR)
-library(magrittr)
+library(tidyverse)
 
 graph <-
     create_graph() %>%
@@ -16,9 +16,11 @@ graph <-
       "1->2 2->3 2->4 3->5 4->5", "black") %>%
     set_node_attrs("label",c( 'New tuxedo\nanalysis pipeline',
                               'Ab initio\ntranscriptome assembly',
-                              'transcript comparison',"ad hoc filtering\nSebnif",
-                              'qunatification\ndifferential expression')) %>%
+                              'Transcript comparison',"ad hoc filtering\nSebnif",
+                              'Qunatification\ndifferential expression')) %>%
     set_node_attrs("fontsize",10) %>%
     set_edge_attrs("arrowsize", 1)
 
 render_graph(graph)
+
+sessionInfo()

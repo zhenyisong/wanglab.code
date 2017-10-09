@@ -1,6 +1,6 @@
 # @author Yisong Zhen
 # @since   2017-06-20
-# @update  2017-08-22
+# @update  2017-09-04
 # @parent 
 #    see fuwai:   vsmc_sample_cor.R
 #    see fuwai:   microarry2Exprs.R
@@ -10,6 +10,10 @@
 # FBS
 # nohup R CMD BATCH /home/zhenyisong/biodata/wanglab/wangcode/xinli.sampleCorrelation.R &
 # b114b695fb8b82fb50a73e559e1e4646  xinli.sampleCorrelation.Rdata
+# 2017-09-04
+#  md5sum  xinli.sampleCorrelation.Rdata
+# eaaaf93aebb5b7549f159058c4a9c660  xinli.sampleCorrelation.Rdata
+
 
 
 
@@ -62,10 +66,15 @@ load('xinli.sampleCorrelation.Rdata')
 rsubread.index.lib <- file.path('/mnt/date/igenomes/rsubread')
 # all reference genomes deposit path
 #---
-hg38.genome.file   <- file.path('/mnt/date/igenomes/Homo_sapiens/UCSC/hg38/Sequence/WholeGenomeFasta/genome.fa')
-mm10.genome.file   <- file.path('/mnt/date/igenomes/Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome.fa')
-rn6.genome.file    <- file.path('/mnt/date/igenomes/Rattus_norvegicus/UCSC/rn6/Sequence/WholeGenomeFasta/genome.fa')
-rn6.GTF.file       <- file.path('/mnt/date/igenomes/Rattus_norvegicus/UCSC/rn6/Annotation/Genes/genes.gtf')
+hg38.genome.file <- file.path('/mnt/date/igenomes/Homo_sapiens/UCSC/hg38/Sequence/WholeGenomeFasta/genome.fa')
+mm10.genome.file <- file.path('/mnt/date/igenomes/Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome.fa')
+rn6.genome.file  <- file.path('/mnt/date/igenomes/Rattus_norvegicus/UCSC/rn6/Sequence/WholeGenomeFasta/genome.fa')
+rn6.GTF.file     <- file.path('/mnt/date/igenomes/Rattus_norvegicus/UCSC/rn6/Annotation/Genes/genes.gtf')
+
+
+GRCm38.file   <- file.path('/mnt/date/igenomes/Mus_musculus/NCBI/GRCm38/Sequence/WholeGenomeFasta/genome.fa')
+GRCh38.file   <- file.path('/mnt/date/igenomes/Homo_sapiens/NCBI/GRCh38/Sequence/WholeGenomeFasta/genome.fa')
+
 
 
 # project output dir
@@ -87,6 +96,20 @@ reference.sets   <- list( hg38.genome.file, mm10.genome.file, rn6.genome.file)
 map2(base.strings, reference.sets, buildindex)
 "
 
+
+setwd(rsubread.index.lib)
+# sessionInfo()
+# Rsubread_1.24.2
+# the following code implement the indexing the reference genomes by 
+# rsubread
+#---
+
+base.strings     <- list('GRCh38','RCm38')
+reference.sets   <- list( GRCh38.file, GRCm38.file)
+map2(base.strings, reference.sets, buildindex)
+
+
+quit('no')
 #---
 # remapping the genome reads
 #---
@@ -1612,14 +1635,21 @@ samples.names.df <- data.frame( GSE38056    = 'AngII',
 
 # this is guided by wangli
 #---
-#selected.sample.names <- c('xinli.772', 'xinli.FBS','PDGF.BB','PDGF.DD','ox.LDL.1h','APOE.VE','Jag1','fluid.stress',
-#                          'AngII', 'TNF.alpha','ROCK1.kd', 'OPG', 'CD9', 'Glucose' )
-selected.sample.names <- c('HA2Z.kd', 'xinli.FBS','PDGF.BB','PDGF.DD','ox.LDL.1h','APOE.VE','Jag1','fluid.stress',
+selected.sample.names <- c('xinli.772', 'xinli.FBS','PDGF.BB','PDGF.DD','ox.LDL.1h','APOE.VE','Jag1','fluid.stress',
                            'AngII', 'TNF.alpha','ROCK1.kd', 'OPG', 'CD9', 'Glucose' )
+#selected.sample.names <- c('HA2Z.kd', 'xinli.FBS','PDGF.BB','PDGF.DD','ox.LDL.1h','APOE.VE','Jag1','fluid.stress',
+#                           'AngII', 'TNF.alpha','ROCK1.kd', 'OPG', 'CD9', 'Glucose' )
 final.result <- match(selected.sample.names,unlist(samples.names.df)) %>% 
                 {names(samples.names.df)[.]} %>%
                 {samples.matrix.df[,.]} %>%
                 as.matrix %>% cor(method = 'pearson') 
+
+# in responding the email request by wangli
+#---
+setwd('C:\\Users\\Yisong\\Desktop')
+write.csv(final.result, file = 'pearson.csv')
+#---
+
 dimnames(final.result) <- list(selected.sample.names, selected.sample.names)
 
 table.pearson <- grid.newpage() %>% 
@@ -1627,9 +1657,24 @@ table.pearson <- grid.newpage() %>%
                             rows = rownames(final.result ),
                             cols = colnames(final.result) )} %>%
                  grid.draw()
-#color.bar    <- colorRampPalette(c('blue', 'white', 'red'))(100)
+color.bar    <- colorRampPalette(c('blue', 'white', 'red'))(20)
 color.bar    <- rev(colorRampPalette(brewer.pal(10,'RdYlBu'))(10))
-color.bar    <- rev( heat.colors(5,alpha  = 1) )
+#color.bar    <- rev( heat.colors(10, alpha  = 1) )
+
+
+# this snippet is from yaoyan.miRNA.R
+# copy somewhere
+#---
+draw_colnames_45 <- function (coln, gaps, ...) {
+    coord <- pheatmap:::find_coordinates( length(coln), gaps)
+    x     <- coord$coord - 0.5 * coord$size
+    res   <- textGrob( coln, x = x, y = unit(1, 'npc') - unit(3,'bigpts'), 
+                       vjust   = 0.5, hjust = 1, rot = 45, gp = gpar(...))
+    return(res)
+}  
+
+assignInNamespace(x = 'draw_colnames', value = 'draw_colnames_45',
+                  ns = asNamespace('pheatmap'))
 pheatmap( final.result, cluster_rows = F, cluster_cols = F,
           clustering_distance_rows = 'correlation', 
           clustering_distance_cols = 'correlation',
@@ -1689,6 +1734,61 @@ vsmc <- ggplot(data = thoc5.dge.tidy) +
         theme(legend.position = c(0.8, 0.8),legend.title.align = 0.5)
 
 "
+
+# vocano plot sggested by wangli
+#---
+setwd('E:\\FuWai\\wangli.lab\\Others')
+vcms.markers       <- 'SM-markers.xlsx' # this data is manually curated
+vcms.dif.table     <- read.xlsx(vcms.markers, sheet = 'con')
+vcms.sec.table     <- read.xlsx(vcms.markers, sheet = 'sec')
+vsmc.dif.genename  <- vcms.dif.table$GeneSymbol
+vsmc.sec.genename  <- vcms.sec.table$GeneSymbol
+
+thoc5.vocano.symbols <- mapIds( org.Mm.eg.db, keys= as.character(xinli.genes$annotation$GeneID), 
+                                keytype = 'ENTREZID', column = 'SYMBOL') %>% make.names(unique = T)
+
+gene.exprs.772        <- xinli.genes%$% counts[,5:8] %>% 
+                         DGEList(genes = xinli.genes$annotation) %>%
+                         calcNormFactors
+cell.lines            <- factor(rep(c(1,2), 2), levels = 1:2, labels = c('C1','C2'))
+groups                <- factor(c(1,1,2,2), levels = 1:2, labels = c('Control','Thoc5'))
+design                <- model.matrix(~ 0 + groups + cell.lines);
+colnames(design)      <- c('Control','Thoc5','Batch')
+contrast.matrix       <- makeContrasts(Thoc5 - Control, levels = design)
+                      
+gene.reverse.772      <- gene.exprs.772 %>% voom(design = design) %>% lmFit() %>%
+                         contrasts.fit(contrast.matrix) %>% 
+                         eBayes() %>%
+                         topTable( number = Inf, sort.by = 'none')
+
+gene.772.tidy         <- gene.reverse.772 %>% mutate(logP = -log(P.Value) ) %>%
+                         mutate(symbol = thoc5.vocano.symbols) %>% 
+                         mutate(Class = 1)
+gene.772.tidy[gene.772.tidy$symbol %in% vsmc.dif.genename,'Class']   <- 2
+gene.772.tidy[gene.772.tidy$symbol %in% vsmc.sec.genename,'Class']   <- 3
+vsmc.dif.df           <- gene.772.tidy[gene.772.tidy$symbol %in% vsmc.dif.genename,]
+vsmc.sec.df           <- gene.772.tidy[gene.772.tidy$symbol %in% vsmc.sec.genename,]
+
+thoc5.vocano.plot     <- gene.772.tidy %>% 
+                         ggplot(aes(x = logFC, y = logP)) + 
+                         geom_point(alpha = 0.05) +
+                         geom_text_repel( aes(x = logFC, y = logP), 
+                                          label = vsmc.dif.df[,'symbol'], 
+                                          data  = vsmc.dif.df, 
+                                          size  = 1.5, color = 'blue') +
+                         geom_text_repel( aes(x = logFC, y = logP), 
+                                          label = vsmc.sec.df[,'symbol'], 
+                                          data  = vsmc.sec.df, size = 3, 
+                                          color = 'red', fontface = 'bold') +
+                         xlab('log(Fold Change) from limma result') +
+                         ylab('-log(P.Value)') +
+                         coord_cartesian( ylim = c(0,25), xlim = c(-2.5,2.5)) +
+                         theme_classic()
+
+
+
+
+
 setwd(Rdata.output.dir)
 #save(samples.matrix.df, samples.names.df, file = 'xinli.sampleCorrelation.simple.Rdata')
 save.image('xinli.sampleCorrelation.Rdata')

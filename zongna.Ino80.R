@@ -32,15 +32,15 @@ rsubread.index.lib <- file.path('/mnt/date/igenomes/rsubread')
 #---
 rat.lncRNAmRNA.gtf  <- file.path('/mnt/date/genomelib/annotation/rn6_UCSC_NONCODEv5_total.GTF')
 
-
+"
 setwd(Rdata.output.dir)
 load('zonnagIno80.Rdata')
-
-
 "
+
+
+
 setwd('D:\\wangli_data\\Rdata')
 load('zonnagIno80.Rdata')
-"
 
 #---test code
 # for sva analysis
