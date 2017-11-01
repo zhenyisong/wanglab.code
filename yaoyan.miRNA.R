@@ -1,6 +1,7 @@
+#---
 # @author Yisong zhen
 # @since 2017-03-30
-# @updated 2017-07-05
+# @updated 2017-10-27
 # @parent
 #    yaoyan.miRNA.sh
 # 
@@ -10,84 +11,90 @@
 # I downloaded the human ageing related gene
 # http://genomics.senescence.info/genes/microarray.php
 # unzip and get the 
-
-library(gplots)
-library(xlsx)
-library(Rsubread)
-library(edgeR)
-library(limma)
-library(DESeq2)
-library(genefilter)
-library(RColorBrewer)
-library(org.Mm.eg.db)
-library(cluster)
-library(factoextra)
-library(clusterProfiler)
-library(pathview)
-library(sva)
-library(systemPipeR)
-library(rtracklayer)
-library(stringr)
-library(GenomicFeatures)
-library(tidyverse)
-library(magrittr)
-library(GEOquery)
-library(grid)
-library(pheatmap)
-library(VennDiagram)
-library(DiagrammeR)
-library(miRNATarget)
-library(gridExtra)
-library(org.Hs.eg.db)
-library(igraph)
-library(car)
-library(tm)
-library(png)
-library(DiagrammeRsvg)
-library(grImport2)
-library(grConvert)
-library(GGally)
-library(network)
-library(sna)
-library(intergraph)
-library(multiMiR)
+#---
 
 
+pkgs <- c( 'tidyverse','Rsubread','org.Mm.eg.db','edgeR',
+           'limma', 'DESeq2', 'genefilter',
+           'openxlsx','pheatmap','gridExtra','ggrepel',
+           'QuasR','annotate','clusterProfiler',
+           'GGally','RColorBrewer',
+           'cluster','factoextra', 'cowplot',
+           'Rsamtools', 'devtools', 'gplots',
+           'reshape2', 'stringr','magrittr',
+           'multiMiR', 'biomaRt',
+           'igraph','org.Hs.eg.db', 'miRNATarget',
+           'DiagrammeR','VennDiagram', 'GEOquery',
+           'GenomicFeatures', 'rtracklayer',
+           'pathview','xlsx'
+         )
+#--
+# deprecated
+# install.package(pkgs)
+# this will install all necessary packages
+# required in this project
+#---
+#install.lib <- lapply(pkgs, library, character.only = TRUE)
+load.lib <- lapply(pkgs, require, character.only = TRUE)
 
-setwd('/home/zhenyisong/biodata/wanglab/wangdata/yaoyan/rawdata/miRNA_bwa')
-setwd('D:\\wangli_data\\Rdata')
-load("yaoyan.miRNA.Rdata")
-#load("yaoyan.encode.Rdata")
+working.env <- 'window'
+linux.path  <- file.path('/home/zhenyisong/biodata/wanglab/wangdata/yaoyan/rawdata/miRNA_bwa')
+window.path <- file.path('D:\\yisong.data')
+
+
+#---
+#load('yaoyan.encode.Rdata')
 #load('yaoyan.Rdata')
+#---
 
-# quantification pipleine
+switch( working.env, linux  = { setwd(linux.path);
+                                load('yaoyan.miRNA.Rdata')},
+                     window = { setwd(window.path);
+                                load('yaoyan.miRNA.Rdata')} )
+
+figures.path <- file.path('E:\\FuWai\\dead.dir\\wangli.lab\\yaoyan\\yaoyanAgingpaper\\final.figures')
+#---
+# quantification pipleine digram.
 # this is the whole project first step for
 # quantifiaction of miR expression level
-# pipeline digram
+# pipeline digram, which helps readers to 
+# understand the results and inference procedure.
 #
+# This is the Figure 1A.
+#---
 graph <-
     create_graph() %>%
-    set_graph_name("miRNA quantification pipeline") %>%
-    set_global_graph_attrs("graph", "overlap", "true") %>%
-    set_global_graph_attrs("node", "color", "white") %>%
-    set_global_graph_attrs("node", "fontname", "Arial") %>%
+    set_graph_name('miRNA quantification pipeline') %>%
+    set_global_graph_attrs('graph', 'overlap', 'true') %>%
+    set_global_graph_attrs('node', 'color', 'white') %>%
+    set_global_graph_attrs('node', 'fontname', 'Arial') %>%
     add_n_nodes(5) %>%
     select_nodes_by_id(c(1:5)) %>% 
-    set_node_attrs_ws("shape", "retangle") %>%
-    set_node_attrs_ws("style", "filled") %>%
+    set_node_attrs_ws('shape', 'retangle') %>%
+    set_node_attrs_ws('style', 'filled')   %>%
+    set_node_attrs_ws('color', 'white')   %>%
     clear_selection %>%
     add_edges_w_string(
-      "1->2 2->3 3->4 4->5", "black") %>%
-    set_node_attrs("label",c( 'Reads mapping by the BWA algorithm',
+      '1->2 2->3 3->4 4->5', 'black') %>%
+    set_node_attrs('label',c( 'Reads mapping by the BWA algorithm',
                               'Preprocessing and quality control',
                               'miR reads counting by the HT-Count',
                               'Validation by the public dataset',
-                              'Differential expression analysis by the edgeR')) %>%
-    set_node_attrs("fontsize",10) %>%
-    set_edge_attrs("arrowsize", 1)
+                              'Differential expression analysis using the edgeR')) %>%
+    set_node_attrs('fontsize',10) %>%
+    set_edge_attrs('arrowsize', 1)
+
 render_graph(graph)
-sampleFile      <- tempfile(pattern = "zhen3temp", tmpdir = tempdir(), fileext = ".png")
-#newsampleFile   <- tempfile(pattern = "zhen4temp", tmpdir = tempdir(), fileext = ".svg")
+
+#---
+# the following code is to test
+# the multiplot arrangement
+# but failed to save all plots in a figure
+#---
+
+"
+sampleFile      <- tempfile(pattern = 'zhen3temp', tmpdir = tempdir(), fileext = '.png')
+#newsampleFile   <- tempfile(pattern = 'zhen4temp', tmpdir = tempdir(), fileext = '.svg')
 pipeline.svg <- export_graph(graph, file_name = sampleFile, file_type = 'png')
 #convertPicture(sampleFile, newsampleFile)
 #pipeline.img   <-  readPicture(newsampleFile)
@@ -104,9 +111,11 @@ grob.temp <- arrangeGrob( a, kegg.pathway.plot,
 grid.arrange(grobs = grob.temp)
 plot2by2 <- plot_grid( coremiR.8.heatmap$gtable, kegg.pathway.plot, 
                        Go.CC.ggplot, ggnet2(miR.targets.go.CC.network),
-                       labels=c("A", "B", "C", "D"), ncol = 2)
-figure3.ggplot <- plot_grid(aging.miR23.lm.figure3B, plotlist = venns.ggplot2.figure3A, labels=c("A", "B"), nrow = 2)
+                       labels=c('A', 'B', 'C', 'D'), ncol = 2)
+figure3.ggplot <- plot_grid(aging.miR23.lm.figure3B, plotlist = venns.ggplot2.figure3A, labels=c('A', 'B'), nrow = 2)
 grid.arrange(arrangeGrob(aging.miR23.lm.figure3B), venns.ggplot2.figure3A)
+
+"
 
 # Agilen image raw data normlization method
 #
@@ -118,7 +127,7 @@ grid.arrange(arrangeGrob(aging.miR23.lm.figure3B), venns.ggplot2.figure3A)
 #---
 
 
-miRNA.count.files  <- list.files(pattern = "Sample.*\\.txt$")
+miRNA.count.files  <- list.files(pattern = 'Sample.*\\.txt$')
 miRNA.count.matrix <- NULL
 for( filename in miRNA.count.files) {
     column <- read.delim(filename, header = F, row.names = 1)
@@ -126,7 +135,7 @@ for( filename in miRNA.count.files) {
 }
 
 rownames(miRNA.count.matrix) <- rownames(column)
-colnames(miRNA.count.matrix) <- sub("\\.txt","",miRNA.count.files)
+colnames(miRNA.count.matrix) <- sub('\\.txt','',miRNA.count.files)
 
 groups <- factor(c(rep(1,3),rep(2,3), rep(1,3),rep(2,3)), levels = 1:2, labels = c('Control','Patient'))
 ages   <- factor(c(rep(1,6),rep(2,6)), levels = 1:2, labels = c('AF60','AF70'))
@@ -162,17 +171,19 @@ AF.miRNA.edgeR.sig.table           <- model.result$table[which(AF.miRNA.edgeR.pv
                                       arrange(PValue)
 rownames(AF.miRNA.edgeR.sig.table) <- rownames(model.result$table)[which(AF.miRNA.edgeR.pvalue < 0.05)]
 
-
+#---
+# deprecated:
+#
 # require(XLConnect)
 #setwd('C:\\Users\\Yisong\\Desktop')
-#writeWorksheetToFile("AF-miNRA.xlsx", data = AF.miRNA.edgeR.sig.table, 
-#                                 sheet = "AF-exludedAge")
+#writeWorksheetToFile('AF-miNRA.xlsx', data = AF.miRNA.edgeR.sig.table, 
+#                                 sheet = 'AF-exludedAge')
 # thrown out error
 # Error: NoSuchMethodError (Java): 
 # org.apache.poi.ss.usermodel.Cell.setCellType(Lorg/apache/poi/ss/usermodel/CellType;)V
 #---
 
-write.xlsx(x = AF.miRNA.edgeR.sig.table, file = "AF-miNRA.xlsx", sheet = 'AF-exludedAge')
+write.xlsx(x = AF.miRNA.edgeR.sig.table, file = 'AF-miNRA.xlsx', sheet = 'AF-exludedAge')
 
 # now check the age variable influence on 
 # samples; we above model using age as the second param to isolate the AF patient, SR patient
@@ -203,7 +214,7 @@ Aging.miRNA.edgeR.sig.table['hsa-miR-34a-5p',]
 # NATURE paper regarding the distribution of 
 # aging specific miR-34a
 # 
-sample.SR.info          <- data.frame( treat  = c('SR40','SR40','SR40','SR50','SR50', 'SR50',
+sample.SR.info          <- data.frame( treat  = c( 'SR40','SR40','SR40','SR50','SR50', 'SR50',
                                                    'SR60','SR60','SR60','SR70','SR70', 'SR70') )
 dge.tmm.miRNA.log       <- miRNA.count.matrix[,c(1:9,13:15)]  %>%
                            DESeqDataSetFromMatrix(colData = sample.SR.info, design = ~ treat) %>%
@@ -225,6 +236,14 @@ aging.miR.set         <- aging.whole.df['hsa-miR-34a-5p',]
 # NaRV.omit(df)
 # is much better?
 #---
+
+#
+# this code is from  yaoyan.R
+# please re-check the code
+#---
+"
+human.gsea.figure1B    <- gseaplot(aging.1.result, 'aging.pathway')
+"
 aging.whole.df <- aging.whole.df[complete.cases(aging.whole.df) & !is.infinite(rowSums(aging.whole.df)),]
 
 miR34.valid.figure1C <- ggplot(data = aging.whole.df, aes( x= avg, y = ratio)) +
@@ -232,7 +251,7 @@ miR34.valid.figure1C <- ggplot(data = aging.whole.df, aes( x= avg, y = ratio)) +
                         geom_point( data = aging.miR.set, aes(x =  avg , y = ratio), 
                                     color = 'red', size = 3.2, shape = 16) +
                         geom_text( data = aging.miR.set, aes(x =  avg , y = ratio), 
-                                   label = 'hsa-miR-34', color = 'blue', 
+                                   label = 'hsa-miR-34a', color = 'blue', 
                                    vjust = -2, hjust = 1) +
                         xlab('average expression counts (log)') + 
                         ylab('ratio old(60)/young(40) (log)') +
@@ -284,7 +303,7 @@ rownames(SR.samples.exprs.miRNA.log) <- rownames(column)
 colnames(SR.samples.exprs.miRNA.log) <- c('SR.median.exprs.log')
 SR.samples.exprs.miRNA.filter.log           <- filter(SR.samples.exprs.miRNA.log, SR.median.exprs.log != 0)
 rownames(SR.samples.exprs.miRNA.filter.log) <- rownames(column)[SR.samples.exprs.miRNA.log$SR.median.exprs.log != 0]
-match.pattern                        <- paste(heart.specific.miRNA,collapse = "|")
+match.pattern                        <- paste(heart.specific.miRNA,collapse = '|')
 heart.ind                            <- grep(match.pattern,rownames(SR.samples.exprs.miRNA.filter.log))
 (rownames(SR.samples.exprs.miRNA.filter.log)[heart.ind])
 
@@ -293,7 +312,7 @@ heart.miRNA.names                    <- rownames(SR.samples.exprs.miRNA.filter.l
 
 heart.specific.jitter  <- jitter(rep(1, dim(heart.miRNA.exprs)[1]), amount = 0.4)
 ggplot(data = SR.samples.exprs.miRNA.filter.log, aes(x = 1, y = SR.median.exprs.log)) + 
-         geom_point( position = "jitter" ) + 
+         geom_point( position = 'jitter' ) + 
          # this label method is deprecated.
          #geom_label_repel( data = heart.miRNA.exprs, mapping = aes(x = 1, y = exprs, label = heart.miRNA.names ))
          geom_point( data = heart.miRNA.exprs, 
@@ -332,8 +351,8 @@ heatmap.result <- heatmap.2(  aging.miRNA.filtered  , col = greenred(75), scale 
 						      hclustfun  = function(d) hclust(d, method = 'complete'),
 						      dendrogram = 'no', labRow = NA);
 
-#aging.dist.miRNA            <- cor(t(aging.miRNA.filtered), method = "spearman") %>% as.dist()
-aging.hclust.miRNA          <- hclust(d = aging.dist.miRNA, method = "complete")
+#aging.dist.miRNA            <- cor(t(aging.miRNA.filtered), method = 'spearman') %>% as.dist()
+aging.hclust.miRNA          <- hclust(d = aging.dist.miRNA, method = 'complete')
 
 
 # updated since 2017-06-29
@@ -393,45 +412,69 @@ colnames(aging.specific.miRNA.plus) <- c('SR40-1','SR40-2','SR40-3','SR50-1','SR
                                          'SR60-1','SR60-2','SR60-3','SR70-1','SR70-2', 'SR70-3') 
 # see guo howto draw table in ggplot
 # this is the Figure S2.
+# in corresponding to yao's suggestion, I
+# change the miR-34a-5p to mi
 #---
-figureS2 <- grid.newpage() %>% 
-            {tableGrob( round(aging.specific.miRNA.plus, digits = 2), 
-                       rows = rownames(aging.specific.miRNA.plus ))} %>%
-            grid.draw()
+
+table.rownames    <- rownames(aging.specific.miRNA.plus )
+table.rownames[3] <- 'hsa-miR-34a'
+
+figureS2          <- grid.newpage() %>% 
+                     {tableGrob( round(aging.specific.miRNA.plus, digits = 2), 
+                                 rows = table.rownames)} %>%
+                     grid.draw()
+
+setwd(figures.path)
+
+grid.newpage() %>% 
+{tableGrob( round(aging.specific.miRNA.plus, digits = 2), 
+            rows = table.rownames)} %>%
+ggsave( 'FigureS2.jpeg', plot = ., dpi = 600, 
+        width = 270, height = 80, units = 'mm')
 
 
 # deprecated, since 2017-06-29
 #---
 
-"
+'
 g <- tableGrob(rownames(ageing.miRNA.edgeR.sig.table.1), rows = NULL)
 grid.newpage()
 grid.draw(g)
-"
+'
 
+#---
 # heatmap of core8 aging miRNA
 # core 8, miR list overlap for show
-# Figure 2? need ordering
+# Figure 2A need ordering
 #---
 
 draw_colnames_45 <- function (coln, gaps, ...) {
     coord <- pheatmap:::find_coordinates( length(coln), gaps)
     x     <- coord$coord - 0.5 * coord$size
-    res   <- textGrob( coln, x = x, y = unit(1, "npc") - unit(3,"bigpts"), 
+    res   <- textGrob( coln, x = x, y = unit(1, 'npc') - unit(3,'bigpts'), 
                        vjust   = 0.5, hjust = 1, rot = 45, gp = gpar(...))
     return(res)
 }  
 
-assignInNamespace(x = "draw_colnames", value = "draw_colnames_45",
-                  ns = asNamespace("pheatmap"))
+assignInNamespace(x = 'draw_colnames', value = 'draw_colnames_45',
+                  ns = asNamespace('pheatmap'))
 
-color.bar <- colorRampPalette(c("midnightblue", "grey", "mediumvioletred"))(100)
-coremiR.8.figure2A <-pheatmap( aging.specific.miRNA.plus, cluster_rows = TRUE, cluster_cols = FALSE,
-                               clustering_distance_rows = 'correlation', color = color.bar,
-                               scale = 'row', fontsize_col = 10, cellwidth = 23, 
-                               cellheight = 23, cuttree_rows = 2)
+color.bar <- colorRampPalette(c('midnightblue', 'grey', 'mediumvioletred'))(100)
+#---
+# in corresponding yao's request
+# I change the miR name
+#---
 
+aging.matrix <- aging.specific.miRNA.plus
+rownames(aging.matrix)[3] <- 'hsa-miR-34a'
+coremiR.8.figure2A <- pheatmap( aging.matrix, cluster_rows = TRUE, cluster_cols = FALSE,
+                                clustering_distance_rows = 'correlation', color = color.bar,
+                                scale = 'row', fontsize_col = 10, cellwidth = 23, 
+                                cellheight = 23, cuttree_rows = 2)
 
+#--- end figure 2A
+
+#---
 # miRNA and lm() graph
 #---
 
@@ -448,7 +491,7 @@ aging.correlation <- data.frame( miRNA.exprs = unlist(aging.specific.miRNA['hsa-
 
 lm.equation <- function(df){
     m <- lm(miRNA.exprs ~ age, df);
-    eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+    eq <- substitute(italic(y) == a + b %.% italic(x)*','~~italic(r)^2~'='~r2, 
          list( a = format(coef(m)[1], digits = 2), 
                b = format(coef(m)[2], digits = 2), 
               r2 = format(summary(m)$r.squared, digits = 3)))
@@ -464,14 +507,12 @@ aging.miR23.lm.figure3B <- ggplot(data = aging.correlation, aes(x = as.numeric(a
                            geom_smooth(method = lm, se = TRUE) +
                            geom_point(aes(color = age), show.legend = F) + 
                            xlim('age.40','age.50', 'age.60','age.70') +
-                           xlab('human ages, x') +
-                           ylab('miR expression level(log), y')  +
-                           ggtitle('The miR-23a is negatively correlated with human aging')               +
+                           xlab('human ages') +
+                           ylab('miR-23a expression level(log), y')  +
                            geom_text( aes(x = 3, y = 0.4), 
                                       label = lm.equation(aging.correlation), 
                                       parse = TRUE) +
-                           theme( plot.title = element_text(lineheight = .8, face= 'plain', hjust = .5),
-                                  axis.title = element_text(lineheight = .4, face= 'plain'))
+                           theme_classic()
 
 
 #
@@ -488,9 +529,9 @@ ref.seq.homo <- miRNA.map[[1]][miRNA.map[[2]] %in% aging.names]
 data(HS_refseq_to_entrezgene)
 miRNA.target.geneID <- unique(id_conv[id_conv$refseq_mrna_ncrna %in% ref.seq.homo,2])
 
-kegg.table     <- enrichKEGG( miRNA.target.geneID, organism = "human", 
+kegg.table     <- enrichKEGG( miRNA.target.geneID, organism = 'human', 
                               pvalueCutoff  = 0.05, 
-                              pAdjustMethod = "BH", 
+                              pAdjustMethod = 'BH', 
                               qvalueCutoff  = 0.1)
 kegg.result       <- summary(kegg.table)
 kegg.qvalue       <- -log(kegg.result$qvalue)
@@ -498,8 +539,8 @@ kegg.pathway.name <- kegg.result$Description
 
 miR.targets.go.CC <- enrichGO( gene  = miRNA.target.geneID,
                                OrgDb = org.Hs.eg.db,
-                               ont   = "CC",
-                               pAdjustMethod = "BH",
+                               ont   = 'CC',
+                               pAdjustMethod = 'BH',
                                pvalueCutoff  = 0.01,
                                qvalueCutoff  = 0.05)
 summary(miR.targets.go.CC)
@@ -552,6 +593,8 @@ pheatmap( aging.rpkm.mRNA[miR.common.targets,], cluster_rows = TRUE, cluster_col
 # these data were from yaoyan.R, please see
 # you have to load the yaoyan.Rdata and 
 # get the aging.rpkm.mRNA
+# Figure 2B
+# co-8miRNA expression genes (mRNAs)
 #---
 
 aging.core8.targets <- get.multimir( mirna = rownames(aging.specific.miRNA.plus),
@@ -560,18 +603,19 @@ aging.core8.targets <- get.multimir( mirna = rownames(aging.specific.miRNA.plus)
                        unique(predicted$target_symbol) %>% as.character
 
 miR.target.40.60   <- intersect(aging.core8.targets,aging.result.1$SYMBOL) %>% na.omit
-color.bar          <- colorRampPalette(c("midnightblue", "grey", "mediumvioletred"))(100)
+color.bar          <- colorRampPalette(c('midnightblue', 'grey', 'mediumvioletred'))(100)
 aging.core8.targets.figure2B <- miR.target.40.60 %>% sample(50) %>% 
                                 {rownames(aging.rpkm.mRNA) %in% . } %>%
                                 aging.rpkm.mRNA[.,] %>%
-                                pheatmap(cluster_rows = TRUE, cluster_cols = FALSE,
+                                pheatmap(cluster_rows = FALSE, cluster_cols = FALSE,
                                          clustering_distance_rows = 'correlation', color = color.bar,
-                                         scale = 'row', fontsize_col = 6, fontsize_row = 5,
+                                         scale = 'row', fontsize_col = 4.5, fontsize_row = 5,
                                          cellwidth = 8, cellheight = 5,
                                          labels_col = c( 'SR40-1','SR40-2','SR40-3',
                                                          'SR50-1','SR50-2','SR50-3',
                                                          'SR60-1','SR60-2','SR60-3',
                                                          'SR70-2','SR70-3','SR70-1'))
+#---
 keytypes(org.Hs.eg.db)
 miR.kegg.df <- mapIds( org.Hs.eg.db, keys = miR.target.40.60, 
                                    column = 'ENTREZID', keytype = 'SYMBOL', 
@@ -584,15 +628,16 @@ miR.kegg.df <- mapIds( org.Hs.eg.db, keys = miR.target.40.60,
                          {data.frame( kegg.pvalue  = -log(pvalue),
                                       kegg.pathway = Description )}
 
-kegg.ggplot.figure2C      <- miR.kegg.df %>% 
+kegg.ggplot.figure2C      <- miR.kegg.df[1:13,] %>% 
                              ggplot( aes( x = reorder(kegg.pathway, kegg.pvalue), 
                                           y = kegg.pvalue)) + 
                              geom_bar( stat = 'identity', width = 0.8, 
                                        position = position_dodge(width = 0.1), size = 10) +
-                             theme( axis.text.x = element_text(angle = 60,hjust = 1, size = 9),
+                             theme( text        = element_text(size = 9),
+                                    axis.text.x = element_text(angle = 60,hjust = 1, size = 9),
                                     axis.text.y = element_text(hjust = 1, size = 9)) +
                              ylab('-log(pvalue)') + 
-                             xlab('KEGG pathway enrichment by clusterProfiler') + 
+                             xlab('KEGG pathway GSEA analysis of miRNAs targets') + 
                              coord_flip()
 
 
@@ -601,9 +646,9 @@ miR.targets.go.CC <- mapIds( org.Hs.eg.db, keys = miR.target.40.60,
                                    multiVals = 'CharacterList') %>% 
                      unlist %>% as.integer %>% 
                      enrichGO( OrgDb = org.Hs.eg.db,
-                               ont   = "CC",
+                               ont   = 'BP',
                                pAdjustMethod = 'none',
-                               pvalueCutoff  = 0.005,
+                               pvalueCutoff  = 0.05,
                                qvalueCutoff  = 1)
 summary(miR.targets.go.CC)
 Go.CC.ggplot.figure2D      <- summary(miR.targets.go.CC) %>% 
@@ -613,8 +658,9 @@ Go.CC.ggplot.figure2D      <- summary(miR.targets.go.CC) %>%
                               ggplot(aes(x = reorder(Golabels, LogPvalue), y = LogPvalue)) + 
                               geom_bar( stat = 'identity', width = 0.4, 
                                         position = position_dodge(width = 0.05), size = 4) +
-                              theme(axis.text.x = element_text(angle = 60,hjust = 1, size = 9),
-                                    axis.text.y = element_text(hjust = 1, size = 9)) +
+                              theme( text        = element_text(size = 9),
+                                     axis.text.x = element_text(angle = 60,hjust = 1, size = 9),
+                                     axis.text.y = element_text(hjust = 1, size = 9)) +
                               ylab('-log(pvalue)') + xlab('GO CC term enrichment analysis') + 
                               coord_flip()
 
@@ -625,7 +671,7 @@ miR.network.figure2E      <- enrichMap( miR.targets.go.CC, vertex.label.cex = 0.
 # deprecated code!
 #
 
-"
+'
 par(mar = c(12,4,1,1), fin = c(4,4))
 
 x = barplot( kegg.qvalue, cex.lab = 0.8,cex.axis= 0.8, width = 0.5,
@@ -634,7 +680,7 @@ x = barplot( kegg.qvalue, cex.lab = 0.8,cex.axis= 0.8, width = 0.5,
 text( cex = 0.75, x = x - 0.25, y = -1.25, 
       kegg.pathway.name, 
       xpd = TRUE, srt = 60, pos = 2)
-"
+'
 
 # the above is the oeverall aging pathway enrichment
 #---
@@ -659,17 +705,21 @@ figureS3A <- ggplot(data = spearman.data, aes(x = cor.data)) +
                              colour = 'black', fill = 'white') +
              geom_density(alpha = .2, fill = 'lawngreen') +
              xlab('spearman correlation coefficiency') +
-             theme_classic()
+             theme_classic() +
+             theme(aspect.ratio = 1)
 
 qqPlot(spearman.data$cor.data, ylab = 'Spearman Correlation Coef')
 
-figureS3B <- ggplot(spearman.data, aes(sample = cor.data)) + stat_qq()
+figureS3B <- ggplot(spearman.data, aes(sample = cor.data)) + 
+             stat_qq() +
+             theme_classic() +
+             theme(aspect.ratio = 1)
 
 figureS3 <- plot_grid( figureS3A, figureS3B, 
-                       labels = c('A', 'B'), ncol = 2,
-                       rel_widths  = c(1,1),
-                       rel_heights = c(0.5,0.5))
-
+                       labels = c('A', 'B'), ncol = 2)
+setwd(figures.path)
+ggsave( 'FigureS3.jpeg', plot = figureS3, 
+        width = 250, height = 180, units = 'mm',dpi = 600)
 
 
 names.vector <- rownames(miRNA.cor.excerpt)
@@ -689,15 +739,20 @@ miR.cor.kegg.df       <- enrichKEGG( miR.cor.geneID , organism = 'human',
                                      kegg.pathway = Description)} %>%
                         filter(kegg.pvalue > 4)
 
-kegg.pathway.figure2F<- miR.cor.kegg.df  %>% ggplot( aes( x = reorder(kegg.pathway, kegg.pvalue), 
+#---
+# in 2017-10-30
+# I think this is the new Figure 2D
+#---
+
+kegg.pathway.figure2F <- miR.cor.kegg.df[1:12,]  %>% ggplot( aes( x = reorder(kegg.pathway, kegg.pvalue), 
                                                        y = kegg.pvalue)) + 
-                        geom_bar( stat = 'identity', width = 0.4, 
-                                  position = position_dodge(width = 0.1), size = 20) +
-                        theme(axis.text.x = element_text(angle = 60,hjust = 1, size = 8),
-                              axis.text.y = element_text(hjust = 1, size = 10)) +
-                        ylab('-log(pvalue)') + 
-                        xlab('miR coexpressed mRNA pathway enrichment analysis') + 
-                        coord_flip()
+                         geom_bar( stat = 'identity', width = 0.4, 
+                                   position = position_dodge(width = 0.1), size = 20) +
+                         theme(axis.text.x = element_text(angle = 60,hjust = 1, size = 8),
+                               axis.text.y = element_text(hjust = 1, size = 10)) +
+                         ylab('-log(pvalue)') + 
+                         xlab('KEGG pathway enrichment analysis of miR co-expressed mRNA') + 
+                         coord_flip()
      
 
 
@@ -722,18 +777,18 @@ setwd('C:\\Users\\Yisong\\Desktop')
 aging.pathway.genelist <- aging.result.1$logFC
 names(aging.pathway.genelist) <-  aging.result.1$GeneID
 aging.pathway <- pathview(gene.data  = aging.pathway.genelist,
-                          pathway.id = "hsa05202",
-                          species    = "hsa",
+                          pathway.id = 'hsa05202',
+                          species    = 'hsa',
                           limit      = list(gene = max(abs(aging.pathway.genelist)), cpd = 1))
 
 aging.pathway.2 <- pathview(gene.data  = aging.pathway.genelist,
-                          pathway.id = "hsa05322",
-                          species    = "hsa",
+                          pathway.id = 'hsa05322',
+                          species    = 'hsa',
                           limit      = list(gene = max(abs(aging.pathway.genelist)), cpd = 1))
 
 aging.pathway.3 <- pathview(gene.data  = aging.pathway.genelist,
-                          pathway.id = "hsa05034",
-                          species    = "hsa",
+                          pathway.id = 'hsa05034',
+                          species    = 'hsa',
                           limit      = list(gene = max(abs(aging.pathway.genelist)), cpd = 1))
 
 #---
@@ -750,7 +805,7 @@ aging.pathway.3 <- pathview(gene.data  = aging.pathway.genelist,
 #
 #---
 setwd('E:\\FuWai\\PaperPublished\\CardiacAgeing\\GSE43556')
-gse       <- getGEO(filename = "GSE43556_family.soft.gz")
+gse       <- getGEO(filename = 'GSE43556_family.soft.gz')
 gsmlist   <- GSMList(gse)
 gpl       <- GPLList(gse)
 
@@ -780,8 +835,8 @@ fit2.miRNA        <- eBayes(fit2)
 
 miRNA.result       <- topTable(  fit2.miRNA, 
                                 number        = Inf, 
-                                adjust.method = "BH", 
-                                sort.by       = "p",
+                                adjust.method = 'BH', 
+                                sort.by       = 'p',
                                 p             = 0.05);
 
 miRNA.result['mmu.miR.34a',]
@@ -789,9 +844,9 @@ miRNA.result['mmu.miR.34a',]
 # mmu.miR.34a 0.3961234 6.922052 4.698403 0.001157251 0.01327598 -0.9671097
 dim(miRNA.result)
 
-hsa.miRNA.aging.matchnames   <- sub("mmu\\.","hsa-", rownames(miRNA.result))
-hsa.miRNA.aging.matchnames   <- gsub("\\.","-",hsa.miRNA.aging.matchnames)
-hsa.miRNA.aging.gsub         <- gsub("(hsa-miR-\\w+)-.*","\\1",hsa.miRNA.aging.matchnames,perl = TRUE)
+hsa.miRNA.aging.matchnames   <- sub('mmu\\.','hsa-', rownames(miRNA.result))
+hsa.miRNA.aging.matchnames   <- gsub('\\.','-',hsa.miRNA.aging.matchnames)
+hsa.miRNA.aging.gsub         <- gsub('(hsa-miR-\\w+)-.*','\\1',hsa.miRNA.aging.matchnames,perl = TRUE)
 
 # next is GSEA enrichment analysis
 
@@ -814,8 +869,8 @@ aging.microarray.plot <- gseaplot(aging.GSEA, 'aging.miRNA')
 # Old ~ Young Mouse from Nature miRNA data set
 #
 #---
-homo.AF60.AF40 <- gsub("(hsa-miR-\\w+)-.*","\\1", rownames(ageing.miRNA.edgeR.sig.table.1), perl = TRUE)
-homo.AF70.AF50 <- gsub("(hsa-miR-\\w+)-.*","\\1", rownames(ageing.miRNA.edgeR.sig.table.2), perl = TRUE)
+homo.AF60.AF40 <- gsub('(hsa-miR-\\w+)-.*','\\1', rownames(ageing.miRNA.edgeR.sig.table.1), perl = TRUE)
+homo.AF70.AF50 <- gsub('(hsa-miR-\\w+)-.*','\\1', rownames(ageing.miRNA.edgeR.sig.table.2), perl = TRUE)
 mouse.aging    <- hsa.miRNA.aging.gsub 
 
 area.1           <- length(homo.AF60.AF40)
@@ -831,8 +886,9 @@ venns.ggplot2.figure3A    <- grid.newpage() %>%
                                                 alpha = rep(0.5, 3), fill = c('cyan','limegreen','navyblue'),
                                                 col = rep('gray97',3), lwd = rep(0,3), euler.d = T, scaled = F,
                                                 cex = c(1.5,1.5,1.5,1.5,1.5,1.5,1.5),
-                                                category = c('homo.AF60.AF40','homo.AF70.AF50','mouse.aging'),
+                                                category = c('homo.SR60.SR40','homo.SR70.SR50','mouse.aging'),
                                                 cat.cex = 1.5, cat.dist = c(0.08,0.08,0.08)) }
+
 
 #---
 # please check the Nature figure 1.D
@@ -864,7 +920,7 @@ geom_point(aes(x =  exprs.df['mmu.miR.34a', 1] , y = exprs.df['mmu.miR.34a',2]),
 
 setwd('/home/zhenyisong/biodata/cardiodata/encodeHeart/humanHeart/miRNA/miRNA_bwa')
 
-miRNA.count.files.encode  <- list.files(pattern = "ENC.*\\.txt$")
+miRNA.count.files.encode  <- list.files(pattern = 'ENC.*\\.txt$')
 miRNA.count.matrix.encode <- NULL
 column.encode             <- NULL
 for( filename in miRNA.count.files.encode) {
@@ -873,7 +929,7 @@ for( filename in miRNA.count.files.encode) {
 }
 
 rownames(miRNA.count.matrix.encode) <- rownames(column.encode)
-#colnames(miRNA.count.matrix) <- sub("\\.txt","",miRNA.count.files)
+#colnames(miRNA.count.matrix) <- sub('\\.txt','',miRNA.count.files)
 miRNA.count.files.encode
 colnames(miRNA.count.matrix.encode) <- c('parietal_lobe','temporal_lobe','spinal_cord',
                                          'tongue','occipital_lobe',
@@ -951,24 +1007,10 @@ heatmap.result <- heatmap.2( miRNA.heart.exprs , col = greenred(75), scale  = 'r
                                  distfun = function(d) as.dist(1-cor(t(d),method = 'pearson')),
 						         hclustfun  = function(d) hclust(d, method = 'complete'),
 						         dendrogram = 'no',labRow = miRNA.heart.names );
-#
-# this script is from 
-# http://stackoverflow.com/questions/15505607/diagonal-labels-orientation-on-x-axis-in-heatmaps
-# rotation of pheatmap x-labels
-#---
-draw_colnames_45 <- function (coln, gaps, ...) {
-    coord <- pheatmap:::find_coordinates( length(coln), gaps)
-    x     <- coord$coord - 0.5 * coord$size
-    res   <- textGrob(coln, x = x, y = unit(1, "npc") - unit(3,"bigpts"), vjust = 0.5, hjust = 1, rot = 45, gp = gpar(...))
-    return(res)
-}
 
-## 'Overwrite' default draw_colnames with your own version 
-assignInNamespace(x = "draw_colnames", value = "draw_colnames_45",
-                  ns = asNamespace("pheatmap"))
 
-color.bar <- colorRampPalette(c("green4", "yellow", "red"))(10)
-#color.bar <- colorRampPalette(c("darkblue", "darkolivegreen1", "darkorange"))(10)
+color.bar <- colorRampPalette(c('green4', 'yellow', 'red'))(10)
+#color.bar <- colorRampPalette(c('darkblue', 'darkolivegreen1', 'darkorange'))(10)
 set.seed(123)
 row.length <- dim(miRNA.heart.exprs)[1]
 colors.ind <- rep('grey87',row.length)
@@ -981,11 +1023,36 @@ ann_colors        <- list(GeneClass = colors.ind)
 #          scale = 'none', fontsize_col = 15, annotation_legend = FALSE,
 #          annotation_row = annotation.df, annotation_colors = ann_colors[1] )
 
+
+#---
+# this script is from 
+# http://stackoverflow.com/questions/15505607/diagonal-labels-orientation-on-x-axis-in-heatmaps
+# rotation of pheatmap x-labels
+#---
+draw_colnames_45 <- function (coln, gaps, ...) {
+    coord <- pheatmap:::find_coordinates( length(coln), gaps)
+    x     <- coord$coord - 0.5 * coord$size
+    res   <- textGrob(coln, x = x, y = unit(1, 'npc') - unit(3,'bigpts'), vjust = 0.5, hjust = 1, rot = 45, gp = gpar(...))
+    return(res)
+}
+
+## 'Overwrite' default draw_colnames with your own version 
+assignInNamespace(x = 'draw_colnames', value = 'draw_colnames_45',
+                  ns = asNamespace('pheatmap'))
 figureS1 <- pheatmap( miRNA.heart.exprs, cluster_rows = TRUE, cluster_cols = FALSE,
                       clustering_distance_rows = 'correlation', color = color.bar, 
-                      scale = 'none', fontsize_col = 12 )
+                      scale = 'none', fontsize_col = 12 ) 
+
+"
+setwd(figures.path)
+
+jpeg('FigureS1.jpeg',unit = 'mm', res = 600)
+grid.draw(figureS1$gtable)
+dev.off()
+"
 
 #--- end for tissue QC for pipeline
+
 
 setwd('/home/zhenyisong/biodata/wanglab/wangdata/Rdata')
 save.image('yaoyan.encode.Rdata')
